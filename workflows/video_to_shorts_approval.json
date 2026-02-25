@@ -1,0 +1,501 @@
+{
+  "id": "approval-workflow-001",
+  "name": "Video to Shorts - Approval",
+  "nodes": [
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "https://docs.google.com/spreadsheets/d/1DeuormgMeAYmqrx7h1GqByNxJiNXMBhInEfkzCbuJ3I/edit?gid=0#gid=0"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "id",
+          "value": "0"
+        },
+        "event": "rowUpdate",
+        "options": {
+          "columnsToWatch": "Aprovado"
+        }
+      },
+      "id": "trigger-sheets-001",
+      "name": "Google Sheets Trigger",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        400,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5BUdyIm6VmWRJYHE",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "approval-cond-01",
+              "leftValue": "={{ String($json['Aprovado']).toUpperCase() }}",
+              "rightValue": "TRUE",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "approval-cond-02",
+              "leftValue": "={{ $json['Status'] }}",
+              "rightValue": "pendente",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-approved-001",
+      "name": "Is Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        620,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "https://docs.google.com/spreadsheets/d/1DeuormgMeAYmqrx7h1GqByNxJiNXMBhInEfkzCbuJ3I/edit?gid=0#gid=0"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Página1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Short #": "={{ $json['Short #'] }}",
+            "Status": "uploading"
+          },
+          "matchingColumns": ["Short #"],
+          "schema": [
+            {
+              "id": "Short #",
+              "type": "string",
+              "display": true,
+              "required": true,
+              "displayName": "Short #",
+              "defaultMatch": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "Status",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "mark-uploading-001",
+      "name": "Mark as Uploading",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        840,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "WwANb09fEhvvkfPE",
+          "name": "Google Sheets - Approval"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "meta-01",
+              "name": "shortTitle",
+              "value": "={{ $('Is Approved?').item.json['Título do Short'] }}",
+              "type": "string"
+            },
+            {
+              "id": "meta-02",
+              "name": "shortDescription",
+              "value": "={{ $('Is Approved?').item.json['Descrição'] }}",
+              "type": "string"
+            },
+            {
+              "id": "meta-03",
+              "name": "shortTags",
+              "value": "={{ $('Is Approved?').item.json['Tags'] }}",
+              "type": "string"
+            },
+            {
+              "id": "meta-04",
+              "name": "categoryId",
+              "value": "={{ $('Is Approved?').item.json['Categoria ID'] }}",
+              "type": "string"
+            },
+            {
+              "id": "meta-05",
+              "name": "publicationDate",
+              "value": "={{ $('Is Approved?').item.json['Data Publicação'] }}",
+              "type": "string"
+            },
+            {
+              "id": "meta-06",
+              "name": "renderUrl",
+              "value": "={{ $('Is Approved?').item.json['Render URL'] }}",
+              "type": "string"
+            },
+            {
+              "id": "meta-07",
+              "name": "shortNumber",
+              "value": "={{ $('Is Approved?').item.json['Short #'] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "metadata-from-sheets-001",
+      "name": "metadataFromSheets",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1060,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.renderUrl }}",
+        "options": {}
+      },
+      "id": "download-short-001",
+      "name": "Download Short",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1280,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/upload/youtube/v3/videos?part=snippet,status&uploadType=resumable",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-Upload-Content-Type",
+              "value": "video/mp4"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "RAW/JSON",
+        "body": "={\n  \"snippet\": {\n    \"title\": \"{{ $('metadataFromSheets').item.json.shortTitle }}\",\n    \"description\": \"{{ $('metadataFromSheets').item.json.shortDescription }}\",\n    \"tags\": \"{{ $('metadataFromSheets').item.json.shortTags }}\",\n    \"categoryId\": \"{{ $('metadataFromSheets').item.json.categoryId }}\",\n    \"defaultLanguage\": \"en_US\",\n    \"defaultAudioLanguage\": \"en_US\"\n  },\n  \"status\": {\n    \"privacyStatus\": \"private\",\n    \"publishAt\": \"{{ $('metadataFromSheets').item.json.publicationDate }}\",\n    \"license\": \"youtube\",\n    \"embeddable\": true,\n    \"publicStatsViewable\": true,\n    \"madeForKids\": false,\n    \"selfDeclaredMadeForKids\": false\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "setup-meta-yt-001",
+      "name": "Setup YouTube Metadata",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1500,
+        300
+      ],
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "o5Fu0eG1BgeY6kHG",
+          "name": "YouTube account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $json.headers.location }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "video/mp4"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "id": "upload-yt-001",
+      "name": "Upload to YouTube",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1940,
+        300
+      ],
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "o5Fu0eG1BgeY6kHG",
+          "name": "YouTube account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "https://docs.google.com/spreadsheets/d/1DeuormgMeAYmqrx7h1GqByNxJiNXMBhInEfkzCbuJ3I/edit?gid=0#gid=0"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Página1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Short #": "={{ $('metadataFromSheets').item.json.shortNumber }}",
+            "Status": "uploaded",
+            "YouTube ID": "={{ $json.id }}",
+            "YouTube Link": "=https://youtube.com/shorts/{{ $json.id }}"
+          },
+          "matchingColumns": ["Short #"],
+          "schema": [
+            {
+              "id": "Short #",
+              "type": "string",
+              "display": true,
+              "required": true,
+              "displayName": "Short #",
+              "defaultMatch": true,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "Status",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "YouTube ID",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "YouTube ID",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "YouTube Link",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "YouTube Link",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "mark-uploaded-001",
+      "name": "Mark as Uploaded",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2160,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "WwANb09fEhvvkfPE",
+          "name": "Google Sheets - Approval"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# Video to Shorts - Approval Workflow\n\n1. Sheets Trigger detects when \"Aprovado\" column changes\n2. Filters: Aprovado=TRUE AND Status=pendente\n3. Immediately marks as \"uploading\" to prevent re-triggers\n4. Reads metadata from the sheet (user may have edited title/description/tags)\n5. Downloads the rendered short video\n6. Uploads to YouTube as PRIVATE\n7. Updates sheet with YouTube ID, link, and status=\"uploaded\"",
+        "height": 340,
+        "width": 1700,
+        "color": 5
+      },
+      "id": "sticky-approval-001",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        360,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Re-attach binary data from Download Short\nconst downloadItems = $('Download Short').all();\nconst currentItem = $input.item;\n\nreturn {\n  json: currentItem.json,\n  binary: downloadItems[0].binary\n};"
+      },
+      "id": "reattach-binary-001",
+      "name": "Reattach Binary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1720,
+        300
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "Is Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Approved?": {
+      "main": [
+        [
+          {
+            "node": "Mark as Uploading",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Mark as Uploading": {
+      "main": [
+        [
+          {
+            "node": "metadataFromSheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "metadataFromSheets": {
+      "main": [
+        [
+          {
+            "node": "Download Short",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Short": {
+      "main": [
+        [
+          {
+            "node": "Setup YouTube Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Setup YouTube Metadata": {
+      "main": [
+        [
+          {
+            "node": "Reattach Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reattach Binary": {
+      "main": [
+        [
+          {
+            "node": "Upload to YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to YouTube": {
+      "main": [
+        [
+          {
+            "node": "Mark as Uploaded",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "n8n-local-smoke"
+  },
+  "tags": []
+}

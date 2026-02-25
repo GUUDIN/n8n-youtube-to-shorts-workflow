@@ -1,98 +1,161 @@
-# n8n Workflow: YouTube Video to Multiple Shorts Automation
+# YouTube → Shorts Automation (Self-Hosted)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This repository contains a free n8n workflow template designed to automate the process of converting long-form YouTube videos into multiple YouTube Shorts. It integrates with [Swiftia.io](https://www.swiftia.io/) for video analysis/rendering and uses a Large Language Model (LLM) for metadata generation, finally uploading and scheduling the shorts to your YouTube channel.
+Automated pipeline that converts long-form YouTube videos into vertical Shorts with smart cropping and karaoke-style captions — **100% self-hosted**, no external APIs except Gemini (free tier).
 
-**Save time and streamline your content repurposing!**
+<img src="https://github.com/mismai-li/n8n-youtube-to-shorts-workflow/blob/main/workflows-screenshot.png?raw=true" alt="n8n workflow" width="640"/>
 
-## Features
+## How It Works
 
-*   **Form Trigger:** Easily start the process by providing a YouTube Video ID, scheduling parameters, and optional styling info via an n8n form.
-*   **External API Integration:** Uses HTTP Request nodes to interact with [Swiftia.io](https://www.swiftia.io/) for:
-    *   Analyzing long videos to identify potential short clips.
-    *   Rendering individual short clips, optionally applying custom caption styling/branding.
-*   **Flexible LLM Integration:** Leverages n8n's LangChain nodes to generate optimized titles, descriptions, tags, and YouTube category IDs using **your preferred LLM provider** (OpenAI, Google Gemini, Groq, etc.).
-*   **Automatic Scheduling:** Calculates and sets publication dates for each Short based on your specified start time and interval.
-*   **Direct YouTube Upload:** Downloads rendered shorts and uploads them directly to your YouTube channel using the official YouTube Data API v3 (resumable uploads).
-*   **Adaptable Template:** Built as a foundation – adapt the API calls to your specific video service.
+1. **You fill a form** in n8n with a YouTube link + schedule preferences
+2. **yt-dlp** downloads the video
+3. **Faster Whisper** transcribes the audio (word-level timestamps)
+4. **Gemini 2.5 Flash** selects the best 45–59s segments (podcast-optimized)
+5. **MediaPipe** detects faces + active speaker via lip tracking
+6. **ffmpeg** renders 1080×1920 vertical crops with karaoke subtitles
+7. **Gemini** generates SEO metadata (title, description, tags)
+8. Results go to a **Google Sheet** for review before publishing
 
-## Disclaimer
+## Stack
 
-*   This is a **template workflow** it works with Swiftia's API. You **will need to adapt** the HTTP Request nodes (`generateShorts`, `get_shorts`, `renderShort`, `getRender`) in case you prefer using other platforms (such as Opus clip, klap app, getmunch, or spikes studio)  you will need to match their specific API endpoints, request formats, and authentication methods.
+| Component | Technology | Cost |
+|-----------|-----------|------|
+| Orchestration | n8n (self-hosted) | Free |
+| Database | PostgreSQL 16 | Free |
+| Video download | yt-dlp | Free |
+| Transcription | faster-whisper (small, CPU) | Free |
+| AI analysis | Gemini 2.5 Flash | Free tier |
+| Face detection | MediaPipe | Free |
+| Video render | ffmpeg + libass | Free |
+| Captions | ASS karaoke with 6 preset styles | Free |
 
-## Screenshot 
-<img src="https://github.com/mismai-li/n8n-youtube-to-shorts-workflow/blob/main/workflows-screenshot.png?raw=true" alt="Alt Text" width="640"/>
+**Total cost: $0** (within Gemini free tier limits).
 
-## Prerequisites
+## Quick Start
 
-Before you start, ensure you have the following:
+### Prerequisites
 
-1.  **n8n Instance:** A running instance (self-hosted or Cloud).
-    *   **\[Self-Hosted Users]** Video processing can be memory-intensive. Consider increasing allocated RAM or setting the environment variable `N8N_DEFAULT_BINARY_DATA_MODE=filesystem` (ensure sufficient disk space).
-2.  **Video Analysis/Rendering Service:** An account and API Key/Credentials for **a service capable of identifying clips in long videos and rendering them via API** (in this template we are using swiftia.io) .
-3.  **Google Account & YouTube Channel:** The target channel for uploads.
-4.  **Google Cloud Platform (GCP) Project:**
-    *   YouTube Data API v3 Enabled.
-    *   OAuth 2.0 Credentials (Client ID & Secret).
-5.  **LLM Provider Account & API Key:** An API key for your chosen provider (e.g., OpenAI, Google AI/Gemini, Groq, Anthropic).
-6.  **n8n Credentials:** Ready to configure credentials within n8n for the services above.
-7.  **n8n LangChain Nodes:** (If required by your LLM provider) Ensure the `@n8n/n8n-nodes-langchain` package (or similar) is available in your n8n instance.
-8.  **(Optional) Caption Styling Info:** Knowledge of the format (e.g., JSON) required by *your chosen video service* for caption styling.
+- Docker & Docker Compose
+- A [Gemini API key](https://aistudio.google.com/apikey) (free)
+- A Google Cloud project with Sheets API enabled (for the approval spreadsheet)
 
-## Setup Instructions
+### 1. Clone & configure
 
-1.  **Download/Clone:** Get the `video_to_shorts_Automation.json` file from this repository.
-2.  **Import:** Import the workflow file into your n8n instance.
-3.  **Create n8n Credentials:**
-    *   **Video Service Auth:** Configure the necessary authentication credential in n8n for your chosen video service (e.g., Header Auth, API Key, OAuth2).
-    *   **YouTube:** Create a "YouTube OAuth2 API" credential using your GCP OAuth details and authenticate it.
-    *   **LLM Provider:** Create the appropriate n8n credential for your chosen LLM provider (e.g., "OpenAI API", "Google Gemini API").
-4.  **Configure Workflow Nodes:**
-    *   **IMPORTANT - Adapt HTTP Requests:** Modify the following HTTP Request nodes to match **your chosen video service's API documentation** in case you are using something other than swiftia:
-        *   `generateShorts` (Initiate analysis)
-        *   `get_shorts` (Check analysis status)
-        *   `renderShort` (Initiate rendering)
-        *   `getRender` (Check rendering status)
-    *   **Select Credentials:** In the YouTube nodes (`setupMetaData`, `Sendshorttoyoutube`) and the LLM Chat Model node, select the corresponding credentials you created in n8n.
-    *   **LLM Node:** The template uses "Google Gemini Chat Model". If using a different provider, **delete** this node and **add** the appropriate one (e.g., "OpenAI Chat Model"). Connect it correctly within the LangChain steps and select your LLM credential.
-    *   **Review ALL Nodes:** Double-check all nodes for any remaining placeholder values (like URLs, keys in headers if not using credentials properly) and replace them.
-5.  **Activate:** Save and activate the workflow.
+```bash
+git clone https://github.com/mismai-li/n8n-youtube-to-shorts-workflow.git
+cd n8n-youtube-to-shorts-workflow
+cp .env.smoke.example .env.smoke
+```
 
-## Running the Workflow
+Edit `.env.smoke` and set your `GEMINI_API_KEY`:
 
-1.  Once active, locate the "Webhook URL" provided by the "n8n Form Trigger" node in the workflow editor.
-2.  Open this URL in your browser.
-3.  Fill out the form:
-    *   YouTube Video ID (e.g., `dQw4w9WgXcQ`)
-    *   First publication date/time (ISO 8601 format, e.g., `2025-05-10T08:00:00Z`)
-    *   Interval between shorts (in hours)
-    *   (Optional) Caption styling information (as required by your video service)
-4.  Submit the form. n8n will start the process.
+```dotenv
+GEMINI_API_KEY=your-key-here
+```
 
-## Important Notes
+### 2. Start the services
 
-*   **Costs:** Be mindful of potential costs associated with your chosen video processing service, the YouTube Data API (beyond free quotas), and your LLM provider.
-*   **Testing:** **Strongly recommended:** Initially set the `privacyStatus` in the `setupMetaData` node to `private` for testing purposes before using `publishAt` for scheduled public/unlisted shorts.
-*   **Error Handling:** This template has basic checks but can be enhanced with more robust error handling using n8n's built-in features.
+```bash
+docker compose -f compose.smoke.yml --env-file .env.smoke up -d
+```
 
-## Customization
+This starts 3 containers:
+- **n8n** on `http://localhost:5678` (workflow UI)
+- **video-shorts** on `http://localhost:8000` (processing API)
+- **PostgreSQL** (n8n database)
 
-Feel free to modify and enhance this workflow:
+### 3. Import the workflow
 
-*   Adjust the prompt in the `generatingMetaData` node for different LLM outputs.
-*   Change the maximum number of shorts processed in the `maxShortsnumber` node.
-*   Add notification steps (e.g., Slack, Discord) upon completion or failure.
-*   Improve error handling logic.
+Open `http://localhost:5678`, create an account, then:
+
+1. Go to **Workflows → Import from File**
+2. Select `workflows/video_to_shorts_Automation.json`
+3. Configure credentials in n8n:
+   - **Google Gemini API** — paste your Gemini API key
+   - **Google Sheets OAuth2** — connect your Google account
+4. Update the Google Sheets spreadsheet ID in the `Append to Approval Sheet` node (or create a new sheet and update)
+5. **Activate** the workflow
+
+### 4. Generate Shorts
+
+Click the **Form Trigger URL** shown in n8n and fill in:
+
+| Field | Description |
+|-------|-------------|
+| Link do vídeo | YouTube URL or video ID |
+| Data da publicação | First publish date |
+| Horário (HH:MM) | Publish time (UTC) |
+| Intervalo (horas) | Hours between each Short |
+| Duração | Target duration (⚡15-30s, 🎯30-45s, 📖45-59s, 🎬60-90s) |
+| Estilo das legendas | Caption preset (CapCut Bold, Clean Minimal, etc.) |
+| Nicho do canal | Optional: channel niche for trending styles |
+| Público-alvo | Optional: target audience description |
+
+The form waits while processing (~15 min for a 30-min video), then returns a link to the approval spreadsheet.
+
+## Caption Presets
+
+| Preset | Style |
+|--------|-------|
+| 🎬 **CapCut Bold** | Montserrat ExtraBold 72pt, white + yellow highlight, heavy outline |
+| ✨ **Clean Minimal** | Montserrat Bold 60pt, white + cyan, subtle outline |
+| 💜 **Neon Glow** | Montserrat ExtraBold 68pt, neon pink + green glow |
+| 🔥 **MrBeast Energy** | Montserrat Black 78pt, yellow + red, maximum impact |
+| 🎙️ **Podcast Chill** | Montserrat Bold 64pt, warm white + soft gold |
+| 🎤 **Karaoke Pop** | Montserrat ExtraBold 74pt, white + green, bold karaoke |
+
+## Smart Features
+
+### Active Speaker Detection
+For multi-camera podcasts, MediaPipe Face Mesh tracks lip movements to identify who's speaking and centers the 9:16 crop on that person.
+
+### Gemini Transcript Correction
+Before rendering, Gemini corrects common speech-to-text errors: brand names, proper nouns, and garbled words — keeping word count intact for timestamp alignment.
+
+### Number Formatting
+Post-processing merges split number tokens (e.g., "2" + "%" → "2%", "2" + ",500" → "2500").
+
+## API Reference
+
+The video-shorts service exposes these endpoints:
+
+```
+POST /api/jobs              — Start processing a YouTube video
+GET  /api/jobs/{id}         — Check job status
+POST /api/render            — Render a specific short
+GET  /api/render/{id}       — Check render status
+GET  /api/caption-presets   — List available caption styles
+GET  /api/trend-style       — Get trending style for a niche
+GET  /healthz               — Health check
+```
+
+## Project Structure
+
+```
+├── compose.smoke.yml           # Docker Compose (3 services)
+├── .env.smoke.example          # Environment template
+├── workflows/
+│   └── video_to_shorts_Automation.json  # n8n workflow
+├── services/
+│   └── video-shorts/
+│       ├── Dockerfile          # Python 3.11 + ffmpeg + Whisper + MediaPipe
+│       ├── app.py              # FastAPI service (~1500 lines)
+│       └── requirements.txt    # Python dependencies
+└── scripts/
+    └── smoke-test.sh           # Automated smoke test
+```
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Whisper is slow | First run downloads the model (~500MB). Subsequent runs use cache. CPU transcription of a 30-min video takes ~12 min. |
+| "Job not ready" error | The container restarted and lost in-memory job state. Re-submit the job. |
+| Gemini word count mismatch | The correction prompt enforces same word count. If Gemini can't comply, original text is kept (safe fallback). |
+| Faces not detected | MediaPipe needs faces within 5m of camera. Ensure `min_detection_confidence=0.5` is appropriate for your content. |
+| Captions too wide | Smart chunking limits to ~22 uppercase characters per line. Adjust `MAX_CHARS` in `generate_ass()` if needed. |
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Contributing (Optional)
-
-Contributions, issues, and feature requests are welcome! Feel free to check [issues page](link-to-your-issues-page).
-
-## Support (Optional)
-
-If you have questions, please open an issue on the [GitHub repository issues page](link-to-your-issues-page).
+MIT — see [LICENSE](LICENSE).

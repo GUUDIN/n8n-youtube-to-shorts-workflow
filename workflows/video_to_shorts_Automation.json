@@ -1,5 +1,5 @@
 {
-  "name": "video to shorts Automation",
+  "name": "Video to Shorts - Generation",
   "nodes": [
     {
       "parameters": {
@@ -21,7 +21,7 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "loose"
           },
           "conditions": [
             {
@@ -35,7 +35,7 @@
               }
             }
           ],
-          "combinator": "and"
+          "combinator": "or"
         },
         "options": {}
       },
@@ -50,16 +50,55 @@
     },
     {
       "parameters": {
-        "url": "=https://app.swiftia.io/api/jobs/{{ $('generateShorts').item.json.id }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
             {
-              "name": "Authorization",
-              "value": "Bearer <YOUR_SWIFTIA_API_KEY>"
+              "id": "err-check-001",
+              "leftValue": "={{ $('get_shorts').item.json.status }}",
+              "rightValue": "ERROR",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
             }
-          ]
+          ],
+          "combinator": "and"
         },
+        "options": {}
+      },
+      "id": "error-check-node-001",
+      "name": "Is Error?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"error\": true,\n  \"message\": \"❌ Falha ao processar o vídeo: {{ $('get_shorts').item.json.error }}\"\n}",
+        "options": {}
+      },
+      "id": "error-response-001",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1300,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=http://video-shorts:8000/api/jobs/{{ $('generateShorts').item.json.id }}",
         "options": {}
       },
       "id": "3cf276c7-44cd-4b3f-baa0-722d93de3b84",
@@ -101,16 +140,7 @@
     },
     {
       "parameters": {
-        "url": "=https://app.swiftia.io/api/render/{{ $('renderShort').item.json.renderId }}",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer <YOUR_SWIFTIA_API_KEY>"
-            }
-          ]
-        },
+        "url": "=http://video-shorts:8000/api/render/{{ $('renderShort').item.json.renderId }}",
         "options": {}
       },
       "id": "12d97ef2-71ad-487c-8489-3484000e367e",
@@ -124,123 +154,122 @@
     },
     {
       "parameters": {
-        "url": "={{ $('getRender').first().json.url }}",
-        "options": {}
-      },
-      "id": "0fb82f27-c209-4e3b-9784-046cc8c8b47b",
-      "name": "downloadshorts",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        2640,
-        40
-      ]
-    },
-    {
-      "parameters": {
-        "method": "PUT",
-        "url": "={{ $node[\"setupMetaData\"].json.headers.location }} ",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "youTubeOAuth2Api",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "video/mp4"
-            }
-          ]
-        },
-        "sendBody": true,
-        "contentType": "binaryData",
-        "inputDataFieldName": "data",
-        "options": {}
-      },
-      "id": "0328fd3e-8f30-433b-9386-76cd6c430095",
-      "name": "Sendshorttoyoutube",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        2820,
-        40
-      ],
-      "credentials": {
-        "youTubeOAuth2Api": {
-          "id": "<YOUR_YOUTUBE_CREDENTIAL_ID>",
-          "name": "<YOUR_YOUTUBE_CREDENTIAL_NAME>"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://www.googleapis.com/upload/youtube/v3/videos?part=snippet,status&uploadType=resumable",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "youTubeOAuth2Api",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "X-Upload-Content-Type",
-              "value": "video/webm"
-            }
-          ]
-        },
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "RAW/JSON",
-        "body": "={\n  \"snippet\": {\n    \"title\": \"{{ $('generatingMetaData').item.json.output.short_title }}\",\n    \"description\": \"{{ $('generatingMetaData').item.json.output.short_description }}\",\n    \"tags\": \"{{ $('generatingMetaData').item.json.output.short_tags.slice(0,6).join(', ') }}\",\n    \"categoryId\": \"{{ $('generatingMetaData').item.json.output.youtube_category_id }}\",\n    \"defaultLanguage\": \"en_US\",\n    \"defaultAudioLanguage\": \"en_US\"\n  },\n  \"status\": {\n    \"privacyStatus\": \"private\",\n    \"publishAt\": \"{{ $('current_item_ref').item.json.publicationDate }}\", \n    \"license\": \"youtube\",\n    \"embeddable\": true,\n    \"publicStatsViewable\": true,\n    \"madeForKids\": false,\n    \"selfDeclaredMadeForKids\": false\n  }\n}",
-        "options": {
-          "response": {
-            "response": {
-              "fullResponse": true
-            }
-          }
-        }
-      },
-      "id": "62ac15f9-fb16-4360-934a-23a45b50f4d8",
-      "name": "setupMetaData",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        3120,
-        -140
-      ],
-      "credentials": {
-        "youTubeOAuth2Api": {
-          "id": "<YOUR_YOUTUBE_CREDENTIAL_ID>",
-          "name": "<YOUR_YOUTUBE_CREDENTIAL_NAME>"
-        }
-      }
-    },
-    {
-      "parameters": {
         "path": "d47e6412-23af-453a-a5eb-9179b54d3ae1",
-        "formTitle": "youtube to shorts",
-        "formDescription": "This workflow allows you to turn your youtube videos into shorts, apply your branding and caption style and schedule their publication dates.",
+        "formTitle": "YouTube → Shorts Generator",
+        "formDescription": "Cole o link do vídeo do YouTube, escolha a data de publicação, o estilo das legendas e gere seus Shorts automaticamente.",
         "formFields": {
           "values": [
             {
-              "fieldLabel": "youtube video ID",
+              "fieldLabel": "Link do vídeo do YouTube",
+              "placeholder": "https://www.youtube.com/watch?v=... ou https://youtu.be/...",
               "requiredField": true
             },
             {
-              "fieldLabel": "First short publication date using the following format: 2025-05-10T08:00:00Z",
+              "fieldLabel": "Data da primeira publicação",
+              "fieldType": "date",
               "requiredField": true
             },
             {
-              "fieldLabel": "Interval between each short publication in hours",
+              "fieldLabel": "Horário de publicação (HH:MM, UTC)",
+              "placeholder": "08:00",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Intervalo entre publicações (horas)",
               "fieldType": "number",
               "requiredField": true
             },
             {
-              "fieldLabel": "Captions styling ( you can use one of the presets or create your own on Swiftia's playground  past it here ",
-              "fieldType": "textarea",
-              "requiredField": true
+              "fieldLabel": "Duração média dos Shorts",
+              "fieldType": "dropdown",
+              "requiredField": true,
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "⚡ 15-30s — Hooks rápidos (TikTok / Reels)"
+                  },
+                  {
+                    "option": "🎯 30-45s — Sweet spot (YouTube Shorts)"
+                  },
+                  {
+                    "option": "📖 45-59s — Conteúdo denso (YouTube max 60s)"
+                  },
+                  {
+                    "option": "🎬 60-90s — Estendido (Instagram Reels max 90s)"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Estilo das legendas",
+              "fieldType": "dropdown",
+              "requiredField": true,
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "🎬 CapCut Bold — Branco grande + destaque amarelo (padrão CapCut/Captions)"
+                  },
+                  {
+                    "option": "✨ Clean Minimal — Branco suave, fonte fina, sem destaque de cor"
+                  },
+                  {
+                    "option": "💜 Neon Glow — Ciano brilhante + destaque rosa neon"
+                  },
+                  {
+                    "option": "🔥 MrBeast Energy — Amarelo enorme + outline vermelho (Impact)"
+                  },
+                  {
+                    "option": "🎙️ Podcast Chill — Branco + destaque azul claro"
+                  },
+                  {
+                    "option": "🎤 Karaoke Pop — Cores vibrantes alternadas, estilo karaokê"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Nicho do canal",
+              "fieldType": "dropdown",
+              "requiredField": false,
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "💻 Tecnologia e Internet"
+                  },
+                  {
+                    "option": "🎮 Games"
+                  },
+                  {
+                    "option": "💰 Finanças e Investimentos"
+                  },
+                  {
+                    "option": "😂 Humor e Entretenimento"
+                  },
+                  {
+                    "option": "📚 Educação"
+                  },
+                  {
+                    "option": "🏋️ Fitness e Saúde"
+                  },
+                  {
+                    "option": "🍳 Culinária"
+                  },
+                  {
+                    "option": "🎵 Música"
+                  },
+                  {
+                    "option": "📱 Marketing Digital"
+                  },
+                  {
+                    "option": "⚡ Notícias e Atualidades"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Público-alvo (opcional)",
+              "placeholder": "ex: jovens 18-25 interessados em tech e startups",
+              "requiredField": false
             }
           ]
         },
@@ -250,7 +279,7 @@
       "id": "b98aebd1-4a2e-42f6-b327-a2ee5262b407",
       "name": "n8n Form Trigger",
       "type": "n8n-nodes-base.formTrigger",
-      "typeVersion": 2,
+      "typeVersion": 2.1,
       "position": [
         560,
         -460
@@ -260,19 +289,10 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://app.swiftia.io/api/jobs",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer <YOUR_SWIFTIA_API_KEY>"
-            }
-          ]
-        },
+        "url": "http://video-shorts:8000/api/jobs",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"functionName\": \"VideoShorts\",\n  \"youtubeVideoId\": \"{{ $('preparingField').item.json.videoId }}\",\n  \"videoSource\":\"{{ $json.videoSource }}\"\n} ",
+        "jsonBody": "={\n  \"functionName\": \"VideoShorts\",\n  \"youtubeVideoId\": \"{{ $('preparingField').item.json.videoId }}\",\n  \"videoSource\":\"{{ $json.videoSource }}\",\n  \"targetDurationMin\": {{ $('preparingField').item.json.targetDurMin }},\n  \"targetDurationMax\": {{ $('preparingField').item.json.targetDurMax }}\n} ",
         "options": {}
       },
       "id": "4e9d1e41-2e70-4c50-8c40-3837d00da9f9",
@@ -300,19 +320,10 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://app.swiftia.io/api/render/",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer <YOUR_SWIFTIA_API_KEY>"
-            }
-          ]
-        },
+        "url": "http://video-shorts:8000/api/render/",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"id\": \"{{ $('current_item_ref').item.json.id }}\",\n  \"target\":  {{ $json['data.shorts'].id }},\n  \"{{ $json.stylingType }}\": {{ $json.styling.toJsonString() }}\n} ",
+        "jsonBody": "={\n  \"id\": \"{{ $('current_item_ref').item.json.id }}\",\n  \"target\":  {{ $json['data.shorts'].id }}\n  {{ $json.stylingType ? ', \"' + $json.stylingType + '\": ' + $json.styling?.toJsonString() : '' }}\n} ",
         "options": {}
       },
       "id": "2a429e8c-2af2-4d81-99d2-7d3bf68770da",
@@ -327,7 +338,7 @@
     },
     {
       "parameters": {
-        "modelName": "models/gemini-2.0-flash-lite",
+        "modelName": "models/gemini-2.5-flash",
         "options": {}
       },
       "id": "a19e317e-2641-4a06-9b84-4f9e15114f9c",
@@ -340,8 +351,8 @@
       ],
       "credentials": {
         "googlePalmApi": {
-          "id": "<YOUR_GEMINI_CREDENTIAL_ID>",
-          "name": "<YOUR_GEMINI_CREDENTIAL_NAME>"
+          "id": "ox3RBnAnmsoixJij",
+          "name": "Google Gemini(PaLM) Api account"
         }
       }
     },
@@ -382,46 +393,13 @@
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "36260632-851a-413f-86f5-78e7b8385b42",
-              "name": "videoSource",
-              "value": "youtube",
-              "type": "string"
-            },
-            {
-              "id": "e4152316-138f-4f63-8cec-32e5f2f71909",
-              "name": "videoId",
-              "value": "={{ $json['youtube video ID'] }}",
-              "type": "string"
-            },
-            {
-              "id": "1be2767a-2c2f-45de-9adc-dcb852060da9",
-              "name": "firstPublicationAt",
-              "value": "={{ $json['First short publication date using the following format: 2025-05-10T08:00:00Z'] }}",
-              "type": "string"
-            },
-            {
-              "id": "cb07bdb4-ef01-47e7-81ef-ebbe2734b269",
-              "name": "intervalHours",
-              "value": "={{ $json['Interval between each short publication in hours'] }}",
-              "type": "number"
-            },
-            {
-              "id": "aaf4c810-1b7d-45a0-a5ab-51a60ec4f530",
-              "name": "cStyling",
-              "value": "={{ $json['Captions styling ( you can create your own on Swiftia\\'s playground  past it heare '] }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
+        "mode": "runOnceForEachItem",
+        "jsCode": "// ---- Extract YouTube Video ID from URL or plain ID ----\nconst rawLink = item.json['Link do vídeo do YouTube'] || '';\nlet videoId = rawLink.trim();\n\n// Try to extract ID from various YouTube URL formats\nconst patterns = [\n  /[?&]v=([a-zA-Z0-9_-]{11})/,           // youtube.com/watch?v=ID\n  /youtu\\.be\\/([a-zA-Z0-9_-]{11})/,        // youtu.be/ID\n  /\\/embed\\/([a-zA-Z0-9_-]{11})/,          // youtube.com/embed/ID\n  /\\/shorts\\/([a-zA-Z0-9_-]{11})/,         // youtube.com/shorts/ID\n  /\\/live\\/([a-zA-Z0-9_-]{11})/,           // youtube.com/live/ID\n];\nfor (const pat of patterns) {\n  const m = rawLink.match(pat);\n  if (m) { videoId = m[1]; break; }\n}\n// If it's already an 11-char ID, keep it\nif (/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {\n  // OK\n} else if (videoId.length > 11) {\n  // Last resort: try to find 11-char segment\n  const fallback = videoId.match(/([a-zA-Z0-9_-]{11})/);\n  if (fallback) videoId = fallback[1];\n}\n\n// ---- Combine date + time into ISO 8601 ----\nconst rawDate = item.json['Data da primeira publicação'] || new Date().toISOString().slice(0, 10);\nconst rawTime = item.json['Horário de publicação (HH:MM, UTC)'] || '08:00';\nconst timeParts = rawTime.trim().match(/(\\d{1,2}):(\\d{2})/);\nconst hh = timeParts ? timeParts[1].padStart(2, '0') : '08';\nconst mm = timeParts ? timeParts[2] : '00';\nconst firstPublicationAt = `${rawDate}T${hh}:${mm}:00Z`;\n\n// ---- Map duration dropdown to min/max ----\nconst durSelection = item.json['Duração média dos Shorts'] || '🎯 30-45s';\nconst durMap = {\n  '15-30': { min: 15, max: 30 },\n  '30-45': { min: 30, max: 45 },\n  '45-59': { min: 45, max: 59 },\n  '60-90': { min: 60, max: 90 },\n};\nlet targetDurMin = 30, targetDurMax = 45; // default\nfor (const [key, val] of Object.entries(durMap)) {\n  if (durSelection.includes(key)) { targetDurMin = val.min; targetDurMax = val.max; break; }\n}\n\n// ---- Map caption style dropdown to preset key ----\nconst styleSelection = item.json['Estilo das legendas'] || 'CapCut Bold';\nconst styleMap = {\n  'CapCut Bold': 'capcut-bold',\n  'Clean Minimal': 'clean-minimal',\n  'Neon Glow': 'neon-glow',\n  'MrBeast': 'mrbeast',\n  'Podcast': 'podcast',\n  'Karaoke': 'karaoke',\n};\nlet captionPreset = 'capcut-bold';\nfor (const [key, val] of Object.entries(styleMap)) {\n  if (styleSelection.includes(key)) { captionPreset = val; break; }\n}\n\n// ---- Map niche dropdown to clean string ----\nconst nicheRaw = item.json['Nicho do canal'] || 'tecnologia e internet';\n// Strip emoji prefix if present\nconst channelNiche = nicheRaw.replace(/^[^a-zA-ZÀ-ú]+/, '').trim() || 'tecnologia e internet';\n\nconst targetAudience = item.json['Público-alvo (opcional)'] || '';\n\nreturn {\n  json: {\n    videoSource: 'youtube',\n    videoId,\n    firstPublicationAt,\n    intervalHours: Number(item.json['Intervalo entre publicações (horas)']) || 6,\n    captionPreset,\n    targetDurMin,\n    targetDurMax,\n    channelNiche,\n    targetAudience,\n  }\n};"
       },
       "id": "b14465e8-4e8f-49d4-9f70-b670be621264",
       "name": "preparingField",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.3,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         820,
         -460
@@ -430,7 +408,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Get the stringified JSON from the input item's cStyling field\nconst cStylingString = item.json.cStyling;\n\n// Initialize variables to hold the results\nlet foundKeyName = null;\nlet foundKeyValue = null;\nlet parseError = null; // Optional: Track parsing errors\n\n// Check if cStyling exists and is a non-empty string\nif (typeof cStylingString === 'string' && cStylingString.trim() !== '') {\n  try {\n    // Parse the string\n    const parsedStyling = JSON.parse(cStylingString);\n\n    // Check if the parsed object exists\n    if (parsedStyling) {\n      // Check for 'options' first\n      if (parsedStyling.options !== undefined) {\n        foundKeyName = \"options\"; // Store the name of the key found\n        foundKeyValue = parsedStyling.options; // Store the value associated with that key\n      }\n      // Else if 'options' doesn't exist, check for 'preset'\n      else if (parsedStyling.preset !== undefined) {\n        foundKeyName = \"preset\"; // Store the name of the key found\n        foundKeyValue = parsedStyling.preset; // Store the value associated with that key\n      }\n      // If neither key exists, the variables remain null\n    }\n  } catch (error) {\n    console.error(\"Failed to parse cStyling JSON:\", error);\n    parseError = `Failed to parse cStyling JSON: ${error.message}`;\n    // Keep variables null on error\n  }\n} else {\n  console.warn(\"cStyling missing, not a string, or empty.\");\n  parseError = \"cStyling missing, not a string, or empty\";\n  // Keep variables null\n}\n\n// --- Construct the NEW output item ---\n\n// Check if a key name was actually found\nif (foundKeyName !== null) {\n  // Return a new item containing the key name and its value\n  return { json: { stylingType: foundKeyName, styling: foundKeyValue } };\n} else {\n  // If nothing was found or parsing failed, return an empty item\n  // Optionally include the error: return { json: { error: parseError } };\n  return { json: {} };\n\n  // Alternatively, to completely filter out items where neither key is found:\n  // return null;\n  // or\n  // return [];\n}"
+        "jsCode": "// Map the caption preset from preparingField into styling format for render\nconst preset = $('preparingField').item.json.captionPreset || 'capcut-bold';\nreturn { json: { stylingType: 'preset', styling: preset } };"
       },
       "id": "2b883ff6-264e-458e-99af-f0854bd46f05",
       "name": "cleaningStyling",
@@ -458,7 +436,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const startDateString = $node[\"preparingField\"].json.firstPublicationAt; // Adjust field name/path as needed\nconst startDate = new Date(startDateString);\nconst intervalHours = $node[\"preparingField\"].json.intervalHours; // Interval between publishing dates (in hours)\n\nitems.forEach((item, index) => {\n  const publishingDate = new Date(startDate.getTime() + index * intervalHours * 60 * 60 * 1000);\n  \n  // Format the date to ISO 8601 (compatible with YouTube API)\n  item.json.publicationDate = publishingDate.toISOString();\n});\n\nreturn items;\n"
+        "jsCode": "const startDateString = $node[\"preparingField\"].json.firstPublicationAt;\nconst startDate = new Date(startDateString);\nconst intervalHours = $node[\"preparingField\"].json.intervalHours;\n\nitems.forEach((item, index) => {\n  const publishingDate = new Date(startDate.getTime() + index * intervalHours * 60 * 60 * 1000);\n  item.json.publicationDate = publishingDate.toISOString();\n});\n\nreturn items;\n"
       },
       "id": "02cfc68d-b442-4972-852b-0fc720487d95",
       "name": "shcedulingCode",
@@ -472,7 +450,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\n  \"formSubmittedText\": \"The workflow has completed, here are the scheduled shorts:   {{ $input.all().map(item => item.json.shortID) }}\"\n}",
+        "responseBody": "={\n  \"message\": \"✅ Shorts gerados com sucesso! Revise e aprove na planilha do Google Sheets.\",\n  \"totalShorts\": {{ $input.all().length }},\n  \"sheetsUrl\": \"https://docs.google.com/spreadsheets/d/1DeuormgMeAYmqrx7h1GqByNxJiNXMBhInEfkzCbuJ3I/edit?gid=0#gid=0\"\n}",
         "options": {}
       },
       "id": "df9a4538-d242-4b4c-b4b9-3703c7ad7a51",
@@ -543,12 +521,12 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=original video title:  {{ $('current_item_ref').item.json.title }}\nshort transcript:  {{ $('current_item_ref').item.json['data.shorts'].text }}\nReason: {{ $('current_item_ref').item.json['data.shorts'].reason }}",
+        "text": "=original video title:  {{ $('current_item_ref').item.json.title }}\nshort transcript:  {{ $('current_item_ref').item.json['data.shorts'].text }}\nReason: {{ $('current_item_ref').item.json['data.shorts'].reason }}\n\n--- DYNAMIC STYLE DIRECTIVE (follow this closely) ---\n{{ $('fetchTrendStyle').item.json.style_directive }}\n\nTitle format to use: {{ $('fetchTrendStyle').item.json.title_format }}\nDescription format: {{ $('fetchTrendStyle').item.json.description_format }}\nSeasonal context: {{ $('fetchTrendStyle').item.json.seasonal_context }}\nTrending hashtags to consider: {{ ($('fetchTrendStyle').item.json.trending_hashtags || []).join(', ') }}\nHook templates for inspiration: {{ ($('fetchTrendStyle').item.json.trending_hooks || []).join(' | ') }}\nPatterns to AVOID: {{ ($('fetchTrendStyle').item.json.avoid_patterns || []).join(', ') }}",
         "hasOutputParser": true,
         "messages": {
           "messageValues": [
             {
-              "message": "You are an expert YouTube Shorts Content Strategist AI. Your primary goal is to maximize the virality and engagement potential of YouTube Shorts created from segments of longer videos.  You will be given the following information for each segment:      long_video_title: The title of the original, longer video. Use this for context regarding the overall topic and potential audience.      segment_transcript: The full transcript of the specific video segment chosen for the Short. This is the core content you need to analyze.      reason_for_choosing: An explanation of why this particular segment was selected (e.g., \"funny moment,\" \"key insight,\" \"controversial point,\" \"quick tutorial,\" \"emotional peak\"). This highlights the intended hook or value proposition of the Short.  Based on these inputs, you MUST generate the following outputs, specifically optimized for the YouTube Shorts algorithm and audience behavior:      short_title:          Concise: Aim for 50 characters or less if possible, definitely under 70.          Hook-driven: Immediately grab attention, create curiosity, or clearly state the value/topic. Use keywords from the transcript and align with the reason_for_choosing.          Intriguing: Use power words, questions, or highlight the most compelling aspect of the segment. Avoid generic titles.      short_description:          Keyword-rich: Include relevant keywords from the transcript and the long_video_title context.          Contextual: Briefly explain what the Short is about or expand slightly on the title's hook.          Essential Hashtag: MUST include #shorts (ideally at the beginning or end).          (Optional but Recommended): Include 1-2 additional relevant hashtags (e.g., #techtips, #funnyfails, #motivation).          (Optional): Consider a subtle Call-to-Action (e.g., \"Watch the full video for more! [Link]\"). Keep it brief.      short_tags:          Relevant: Extract key terms, concepts, names, and topics directly from the segment_transcript and reason_for_choosing.          Contextual: Include broader topic tags related to the long_video_title.          Platform Specific: Include shorts, youtubeshorts, and potentially shortsvideo.          Mix: Use a mix of specific (long-tail) and broader (short-tail) keywords. Aim for 5-15 strong tags.      youtube_category_id:          Accurate Classification: Based on the segment_transcript and long_video_title context, determine the single MOST suitable YouTube category for this Short.          Valid ID: You MUST output only the numerical ID from the official list below. Do not output the category name.      Official YouTube Category IDs:          1: Film & Animation          2: Autos & Vehicles          10: Music          15: Pets & Animals          17: Sports          18: Short Movies          19: Travel & Events          20: Gaming          21: Videoblogging          22: People & Blogs          23: Comedy          24: Entertainment          25: News & Politics          26: Howto & Style          27: Education          28: Science & Technology          29: Nonprofits & Activism          30: Movies          31: Anime/Animation          32: Action/Adventure          33: Classics          34: Comedy (Movies Category)          35: Documentary          36: Drama          37: Family          38: Foreign          39: Horror          40: Sci-Fi/Fantasy          41: Thriller          42: Shorts (Specific Category - Use cautiously, often better to categorize by topic)          43: Shows          44: Trailers"
+              "message": "You are an expert YouTube Shorts Content Strategist AI with a critical mission: maximize virality and engagement while NEVER repeating the same style twice.\n\nYou will receive:\n1. **Content inputs**: video title, segment transcript, and reason for selection\n2. **A Dynamic Style Directive**: trend-aware instructions that change EVERY batch — you MUST follow them closely\n\nThe Style Directive reflects current social media trends, algorithm preferences, and audience behavior patterns. It tells you the EXACT tone, hook style, emoji usage, and hashtag strategy to use for THIS specific batch. Following it ensures each batch of Shorts feels fresh and algorithm-friendly.\n\n---\n\nBased on ALL inputs (content + style directive), generate:\n\n**short_title:**\n- Follow the title format specified in the style directive\n- Concise: under 70 characters (ideally under 50)\n- The hook style MUST match the directive's instructions\n- Use the language/tone specified (PT-BR unless stated otherwise)\n\n**short_description:**\n- Follow the description format from the style directive\n- Apply the emoji strategy exactly as directed\n- MUST include #shorts\n- Include trending hashtags from the directive when relevant\n- Apply the CTA approach specified in the directive\n- Keyword-rich but natural-sounding\n\n**short_tags:**\n- Mix of specific (from transcript) + trending (from directive)\n- Include 'shorts', 'youtubeshorts' always\n- Apply the hashtag strategy from the directive\n- 5-15 strong tags\n\n**youtube_category_id:**\n- Choose the MOST suitable category ID from the official list\n- Valid IDs: 1 (Film & Animation), 2 (Autos & Vehicles), 10 (Music), 15 (Pets & Animals), 17 (Sports), 18 (Short Movies), 19 (Travel & Events), 20 (Gaming), 21 (Videoblogging), 22 (People & Blogs), 23 (Comedy), 24 (Entertainment), 25 (News & Politics), 26 (Howto & Style), 27 (Education), 28 (Science & Technology), 29 (Nonprofits & Activism)\n\n---\n\nCRITICAL RULES:\n- ALWAYS follow the Dynamic Style Directive — it ensures variety across batches\n- NEVER use generic/template-sounding language\n- AVOID the patterns listed in 'Patterns to AVOID'\n- Each Short's metadata should feel like it was written by a different creator\n- Prioritize what the algorithm rewards RIGHT NOW, not outdated best practices"
             }
           ]
         }
@@ -596,7 +574,7 @@
     },
     {
       "parameters": {
-        "content": "## Meta data generation:\n### short title, short description, short tags, short category",
+        "content": "## Meta data generation + Approval Sheet\n### Generates metadata then writes to Google Sheets for approval",
         "height": 554.2648153283677,
         "width": 718.5667680472393,
         "color": 2
@@ -615,47 +593,117 @@
         "assignments": {
           "assignments": [
             {
-              "id": "7d55be19-6c6a-450e-93c8-19ec8726e59d",
-              "name": "shortID",
-              "value": "={{ $json.id }}",
+              "id": "pa-01",
+              "name": "Short #",
+              "value": "={{ $runIndex + 1 }}",
+              "type": "number"
+            },
+            {
+              "id": "pa-02",
+              "name": "Título do Short",
+              "value": "={{ $json.output.short_title }}",
               "type": "string"
             },
             {
-              "id": "9d069756-0b7b-47f6-9d0e-7db5ed72753a",
-              "name": "shortTile",
-              "value": "={{ $json.snippet.title }}",
+              "id": "pa-03",
+              "name": "Descrição",
+              "value": "={{ $json.output.short_description }}",
               "type": "string"
             },
             {
-              "id": "815fe847-f167-488f-bf68-49b13b6abb01",
-              "name": "publishAt",
-              "value": "={{ $json.status.publishAt }}",
+              "id": "pa-04",
+              "name": "Tags",
+              "value": "={{ $json.output.short_tags.join(', ') }}",
               "type": "string"
             },
             {
-              "id": "1a265a1e-891d-4f3c-942f-df2f70700fef",
-              "name": "currentStatus",
-              "value": "={{ $json.status.privacyStatus }}",
+              "id": "pa-05",
+              "name": "Categoria ID",
+              "value": "={{ $json.output.youtube_category_id }}",
+              "type": "number"
+            },
+            {
+              "id": "pa-06",
+              "name": "Data Publicação",
+              "value": "={{ $('current_item_ref').item.json.publicationDate }}",
               "type": "string"
             },
             {
-              "id": "f07c27a9-d268-4ca9-b769-0e11eca8a12f",
-              "name": "youtubeChannel",
-              "value": "={{ $json.snippet.channelId }}",
+              "id": "pa-07",
+              "name": "Render URL",
+              "value": "={{ $('getRender').first().json.url }}",
+              "type": "string"
+            },
+            {
+              "id": "pa-08",
+              "name": "Status",
+              "value": "pendente",
+              "type": "string"
+            },
+            {
+              "id": "pa-09",
+              "name": "Aprovado",
+              "value": "FALSE",
+              "type": "string"
+            },
+            {
+              "id": "pa-10",
+              "name": "YouTube ID",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "pa-11",
+              "name": "YouTube Link",
+              "value": "",
               "type": "string"
             }
           ]
         },
         "options": {}
       },
-      "id": "5bdbef8e-e442-4c06-ac38-cf89ff8a538a",
-      "name": "mappingShortResults",
+      "id": "prep-approval-001",
+      "name": "prepareApprovalData",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.3,
       "position": [
-        3000,
-        40
+        2900,
+        -260
       ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "https://docs.google.com/spreadsheets/d/1DeuormgMeAYmqrx7h1GqByNxJiNXMBhInEfkzCbuJ3I/edit?gid=0#gid=0"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Página1"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "sheets-append-001",
+      "name": "Append to Approval Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3100,
+        -260
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "WwANb09fEhvvkfPE",
+          "name": "Google Sheets - Approval"
+        }
+      }
     },
     {
       "parameters": {
@@ -737,6 +785,20 @@
         2200,
         -20
       ]
+    },
+    {
+      "parameters": {
+        "url": "=http://video-shorts:8000/api/trend-style?niche={{ encodeURIComponent($('preparingField').item.json.channelNiche) }}&audience={{ encodeURIComponent($('preparingField').item.json.targetAudience) }}",
+        "options": {}
+      },
+      "id": "trend-style-fetch-001",
+      "name": "fetchTrendStyle",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1080,
+        -460
+      ]
     }
   ],
   "pinData": {},
@@ -768,6 +830,24 @@
         [
           {
             "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Error?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Error?": {
+      "main": [
+        [
+          {
+            "node": "Respond Error",
             "type": "main",
             "index": 0
           }
@@ -814,28 +894,7 @@
         ]
       ]
     },
-    "downloadshorts": {
-      "main": [
-        [
-          {
-            "node": "Sendshorttoyoutube",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "setupMetaData": {
-      "main": [
-        [
-          {
-            "node": "downloadshorts",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
+
     "n8n Form Trigger": {
       "main": [
         [
@@ -945,6 +1004,17 @@
             "index": 0
           },
           {
+            "node": "fetchTrendStyle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "fetchTrendStyle": {
+      "main": [
+        [
+          {
             "node": "cleaningStyling",
             "type": "main",
             "index": 0
@@ -985,17 +1055,7 @@
         ]
       ]
     },
-    "Sendshorttoyoutube": {
-      "main": [
-        [
-          {
-            "node": "mappingShortResults",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
+
     "maxShortsnumber": {
       "main": [
         [
@@ -1022,14 +1082,25 @@
       "main": [
         [
           {
-            "node": "setupMetaData",
+            "node": "prepareApprovalData",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "mappingShortResults": {
+    "prepareApprovalData": {
+      "main": [
+        [
+          {
+            "node": "Append to Approval Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append to Approval Sheet": {
       "main": [
         [
           {
@@ -1077,14 +1148,14 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
   "versionId": "6552de4f-c6f5-43a1-99a3-963551752c78",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "<YOUR_N8N_INSTANCE_ID>"
+    "instanceId": "n8n-local-smoke"
   },
   "id": "hGpeZnulV01ifHHy",
   "tags": []

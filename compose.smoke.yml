@@ -36,6 +36,34 @@ services:
       - n8n-smoke
 
   # ----------------------------------------------------------------------
+  # Video Shorts Service (replaces Swiftia API)
+  # ----------------------------------------------------------------------
+  # Self-hosted pipeline: yt-dlp + Whisper + Gemini + ffmpeg
+  # Exposes Swiftia-compatible REST API on port 8000.
+  # ----------------------------------------------------------------------
+  video-shorts:
+    build:
+      context: ./services/video-shorts
+    container_name: video-shorts
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      WHISPER_MODEL: ${WHISPER_MODEL:-base}
+      BASE_URL: http://localhost:8000
+    volumes:
+      - ./.vol/video-shorts:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'python -c "import urllib.request; urllib.request.urlopen(\"http://localhost:8000/healthz\")" || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - n8n-smoke
+
+  # ----------------------------------------------------------------------
   # n8n Workflow Automation
   # ----------------------------------------------------------------------
   # Main n8n instance with web UI on port 5678.
