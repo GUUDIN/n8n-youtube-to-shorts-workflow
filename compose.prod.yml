@@ -1,0 +1,90 @@
+# ========================================================================
+# PRODUCTION DOCKER COMPOSE
+# ========================================================================
+# Deploy: DigitalOcean Droplet (2GB+ RAM) + Cloudflare Tunnel
+#
+# Usage:
+#   docker compose -f compose.prod.yml --env-file .env.prod up -d
+# ========================================================================
+
+services:
+  db:
+    image: postgres:16
+    container_name: n8n-prod-db
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_POSTGRESDB:-n8n}
+      POSTGRES_USER: ${DB_POSTGRESDB_USER:-n8n}
+      POSTGRES_PASSWORD: ${DB_POSTGRESDB_PASSWORD}
+    volumes:
+      - ./vol/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U n8n -d n8n']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - n8n-prod
+
+  video-shorts:
+    build:
+      context: ./services/video-shorts
+    container_name: video-shorts
+    restart: always
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      WHISPER_MODEL: ${WHISPER_MODEL:-base}
+      BASE_URL: http://video-shorts:8000
+    volumes:
+      - ./vol/video-shorts:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'python -c "import urllib.request; urllib.request.urlopen(\"http://localhost:8000/healthz\")" || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - n8n-prod
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n-prod
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      N8N_HOST: ${N8N_HOST}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: https
+      N8N_EDITOR_BASE_URL: https://${N8N_HOST}
+      WEBHOOK_URL: https://${N8N_HOST}/
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_DATABASE: ${DB_POSTGRESDB:-n8n}
+      DB_POSTGRESDB_USER: ${DB_POSTGRESDB_USER:-n8n}
+      DB_POSTGRESDB_PASSWORD: ${DB_POSTGRESDB_PASSWORD}
+      DB_POSTGRESDB_HOST: db
+      DB_POSTGRESDB_PORT: 5432
+      N8N_DEFAULT_BINARY_DATA_MODE: filesystem
+      EXECUTIONS_MODE: regular
+      # Não expor a UI directamente — vai pelo Cloudflare Tunnel
+      N8N_SECURE_COOKIE: false
+    volumes:
+      - ./vol/n8n:/home/node/.n8n
+      - ./workflows:/workflows:ro
+    networks:
+      - n8n-prod
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: always
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - n8n-prod
+
+networks:
+  n8n-prod:
+    name: n8n-prod-network
+    driver: bridge

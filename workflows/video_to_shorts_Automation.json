@@ -114,7 +114,7 @@
       "parameters": {
         "fieldToSplitOut": "data.shorts",
         "include": "selectedOtherFields",
-        "fieldsToInclude": "id,title",
+        "fieldsToInclude": "id,videoTitle,videoUrl",
         "options": {}
       },
       "id": "550a0c59-9a94-4ed6-a25c-cec034456e9f",
@@ -185,6 +185,9 @@
               "requiredField": true,
               "fieldOptions": {
                 "values": [
+                  {
+                    "option": "🤖 Livre — IA decide a duração ideal (45s a 3min)"
+                  },
                   {
                     "option": "⚡ 15-30s — Hooks rápidos (TikTok / Reels)"
                   },
@@ -263,6 +266,10 @@
                   {
                     "option": "⚡ Notícias e Atualidades"
                   }
+                  ,
+                  {
+                    "option": "🏢 Negócios"
+                  }
                 ]
               }
             },
@@ -270,6 +277,39 @@
               "fieldLabel": "Público-alvo (opcional)",
               "placeholder": "ex: jovens 18-25 interessados em tech e startups",
               "requiredField": false
+            },
+            {
+              "fieldLabel": "Quantidade máxima de Shorts",
+              "fieldType": "number",
+              "requiredField": true,
+              "placeholder": "5"
+            },
+            {
+              "fieldLabel": "Idioma do vídeo",
+              "fieldType": "dropdown",
+              "requiredField": true,
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "🇧🇷 Português (Brasil)"
+                  },
+                  {
+                    "option": "🇺🇸 English"
+                  },
+                  {
+                    "option": "🇪🇸 Español"
+                  },
+                  {
+                    "option": "🇫🇷 Français"
+                  },
+                  {
+                    "option": "🇩🇪 Deutsch"
+                  },
+                  {
+                    "option": "🌐 Auto-detectar"
+                  }
+                ]
+              }
             }
           ]
         },
@@ -292,7 +332,7 @@
         "url": "http://video-shorts:8000/api/jobs",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"functionName\": \"VideoShorts\",\n  \"youtubeVideoId\": \"{{ $('preparingField').item.json.videoId }}\",\n  \"videoSource\":\"{{ $json.videoSource }}\",\n  \"targetDurationMin\": {{ $('preparingField').item.json.targetDurMin }},\n  \"targetDurationMax\": {{ $('preparingField').item.json.targetDurMax }}\n} ",
+        "jsonBody": "={\n  \"functionName\": \"VideoShorts\",\n  \"youtubeVideoId\": \"{{ $('preparingField').item.json.videoId }}\",\n  \"videoSource\":\"{{ $json.videoSource }}\",\n  \"targetDurationMin\": {{ $('preparingField').item.json.targetDurMin }},\n  \"targetDurationMax\": {{ $('preparingField').item.json.targetDurMax }}\n  {{ $('preparingField').item.json.language ? ', \"language\": \"' + $('preparingField').item.json.language + '\"' : '' }}\n} ",
         "options": {}
       },
       "id": "4e9d1e41-2e70-4c50-8c40-3837d00da9f9",
@@ -369,7 +409,7 @@
     },
     {
       "parameters": {
-        "jsonSchema": "{\n  \"title\": \"YouTube Short Metadata\",\n  \"description\": \"Schema for generating optimized metadata for a YouTube Short based on a segment from a longer video.\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"short_title\": {\n      \"description\": \"Concise, hook-driven title for the YouTube Short (ideally under 70 characters).\",\n      \"type\": \"string\",\n      \"minLength\": 1,\n      \"maxLength\": 70\n    },\n    \"short_description\": {\n      \"description\": \"Keyword-rich description for the Short, including context and the #shorts hashtag.\",\n      \"type\": \"string\",\n      \"minLength\": 1,\n      \"maxLength\": 500, \n      \"pattern\": \"#shorts\"\n    },\n    \"short_tags\": {\n      \"description\": \"List of relevant keywords/tags for the Short, including 'shorts', 'youtubeshorts'.\",\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\",\n        \"minLength\": 1\n      },\n      \"minItems\": 1,\n      \"maxItems\": 25,\n      \"uniqueItems\": true\n    },\n    \"youtube_category_id\": {\n      \"description\": \"The single, most suitable YouTube category ID for the Short.\",\n      \"type\": \"integer\",\n      \"enum\": [\n        1,  \n        2,  \n        10,\n        15, \n        17, \n        18, \n        19, \n        20, \n        21,\n        22, \n        23, \n        24,\n        25,\n        26,\n        27,\n        28,\n        29,\n        30,\n        31,\n        32, \n        33, \n        34, \n        35,\n        36,\n        37, \n        38, \n        39,\n        40, \n        41,\n        42,\n        43, \n        44 \n      ]\n    }\n  },\n  \"required\": [\n    \"short_title\",\n    \"short_description\",\n    \"short_tags\",\n    \"youtube_category_id\"\n  ]\n}"
+        "jsonSchema": "{\n  \"title\": \"YouTube Short Metadata\",\n  \"description\": \"Metadata for a YouTube Short.\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"short_title\": {\n      \"description\": \"Concise, hook-driven title for the YouTube Short (under 70 characters).\",\n      \"type\": \"string\"\n    },\n    \"short_description\": {\n      \"description\": \"Keyword-rich description including #shorts hashtag.\",\n      \"type\": \"string\"\n    },\n    \"short_tags\": {\n      \"description\": \"List of relevant tags including shorts and youtubeshorts.\",\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"youtube_category_id\": {\n      \"description\": \"YouTube category ID (e.g. 22 for People & Blogs, 24 for Entertainment, 27 for Education, 28 for Science & Technology).\",\n      \"type\": \"integer\"\n    }\n  },\n  \"required\": [\n    \"short_title\",\n    \"short_description\",\n    \"short_tags\",\n    \"youtube_category_id\"\n  ]\n}"
       },
       "id": "def998c5-567e-4146-b929-bcbc4f764d85",
       "name": "Structured Output Parser",
@@ -394,7 +434,7 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// ---- Extract YouTube Video ID from URL or plain ID ----\nconst rawLink = item.json['Link do vídeo do YouTube'] || '';\nlet videoId = rawLink.trim();\n\n// Try to extract ID from various YouTube URL formats\nconst patterns = [\n  /[?&]v=([a-zA-Z0-9_-]{11})/,           // youtube.com/watch?v=ID\n  /youtu\\.be\\/([a-zA-Z0-9_-]{11})/,        // youtu.be/ID\n  /\\/embed\\/([a-zA-Z0-9_-]{11})/,          // youtube.com/embed/ID\n  /\\/shorts\\/([a-zA-Z0-9_-]{11})/,         // youtube.com/shorts/ID\n  /\\/live\\/([a-zA-Z0-9_-]{11})/,           // youtube.com/live/ID\n];\nfor (const pat of patterns) {\n  const m = rawLink.match(pat);\n  if (m) { videoId = m[1]; break; }\n}\n// If it's already an 11-char ID, keep it\nif (/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {\n  // OK\n} else if (videoId.length > 11) {\n  // Last resort: try to find 11-char segment\n  const fallback = videoId.match(/([a-zA-Z0-9_-]{11})/);\n  if (fallback) videoId = fallback[1];\n}\n\n// ---- Combine date + time into ISO 8601 ----\nconst rawDate = item.json['Data da primeira publicação'] || new Date().toISOString().slice(0, 10);\nconst rawTime = item.json['Horário de publicação (HH:MM, UTC)'] || '08:00';\nconst timeParts = rawTime.trim().match(/(\\d{1,2}):(\\d{2})/);\nconst hh = timeParts ? timeParts[1].padStart(2, '0') : '08';\nconst mm = timeParts ? timeParts[2] : '00';\nconst firstPublicationAt = `${rawDate}T${hh}:${mm}:00Z`;\n\n// ---- Map duration dropdown to min/max ----\nconst durSelection = item.json['Duração média dos Shorts'] || '🎯 30-45s';\nconst durMap = {\n  '15-30': { min: 15, max: 30 },\n  '30-45': { min: 30, max: 45 },\n  '45-59': { min: 45, max: 59 },\n  '60-90': { min: 60, max: 90 },\n};\nlet targetDurMin = 30, targetDurMax = 45; // default\nfor (const [key, val] of Object.entries(durMap)) {\n  if (durSelection.includes(key)) { targetDurMin = val.min; targetDurMax = val.max; break; }\n}\n\n// ---- Map caption style dropdown to preset key ----\nconst styleSelection = item.json['Estilo das legendas'] || 'CapCut Bold';\nconst styleMap = {\n  'CapCut Bold': 'capcut-bold',\n  'Clean Minimal': 'clean-minimal',\n  'Neon Glow': 'neon-glow',\n  'MrBeast': 'mrbeast',\n  'Podcast': 'podcast',\n  'Karaoke': 'karaoke',\n};\nlet captionPreset = 'capcut-bold';\nfor (const [key, val] of Object.entries(styleMap)) {\n  if (styleSelection.includes(key)) { captionPreset = val; break; }\n}\n\n// ---- Map niche dropdown to clean string ----\nconst nicheRaw = item.json['Nicho do canal'] || 'tecnologia e internet';\n// Strip emoji prefix if present\nconst channelNiche = nicheRaw.replace(/^[^a-zA-ZÀ-ú]+/, '').trim() || 'tecnologia e internet';\n\nconst targetAudience = item.json['Público-alvo (opcional)'] || '';\n\nreturn {\n  json: {\n    videoSource: 'youtube',\n    videoId,\n    firstPublicationAt,\n    intervalHours: Number(item.json['Intervalo entre publicações (horas)']) || 6,\n    captionPreset,\n    targetDurMin,\n    targetDurMax,\n    channelNiche,\n    targetAudience,\n  }\n};"
+        "jsCode": "// ---- Extract YouTube Video ID from URL or plain ID ----\nconst rawLink = item.json['Link do vídeo do YouTube'] || '';\nlet videoId = rawLink.trim();\n\n// Try to extract ID from various YouTube URL formats\nconst patterns = [\n  /[?&]v=([a-zA-Z0-9_-]{11})/,           // youtube.com/watch?v=ID\n  /youtu\\.be\\/([a-zA-Z0-9_-]{11})/,        // youtu.be/ID\n  /\\/embed\\/([a-zA-Z0-9_-]{11})/,          // youtube.com/embed/ID\n  /\\/shorts\\/([a-zA-Z0-9_-]{11})/,         // youtube.com/shorts/ID\n  /\\/live\\/([a-zA-Z0-9_-]{11})/,           // youtube.com/live/ID\n];\nfor (const pat of patterns) {\n  const m = rawLink.match(pat);\n  if (m) { videoId = m[1]; break; }\n}\n// If it's already an 11-char ID, keep it\nif (/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {\n  // OK\n} else if (videoId.length > 11) {\n  // Last resort: try to find 11-char segment\n  const fallback = videoId.match(/([a-zA-Z0-9_-]{11})/);\n  if (fallback) videoId = fallback[1];\n}\n\n// ---- Combine date + time into ISO 8601 ----\nconst rawDate = item.json['Data da primeira publicação'] || new Date().toISOString().slice(0, 10);\nconst rawTime = item.json['Horário de publicação (HH:MM, UTC)'] || '08:00';\nconst timeParts = rawTime.trim().match(/(\\d{1,2}):(\\d{2})/);\nconst hh = timeParts ? timeParts[1].padStart(2, '0') : '08';\nconst mm = timeParts ? timeParts[2] : '00';\nconst firstPublicationAt = `${rawDate}T${hh}:${mm}:00Z`;\n\n// ---- Map duration dropdown to min/max ----\nconst durSelection = item.json['Duração média dos Shorts'] || 'Livre';\nconst durMap = {\n  'Livre': { min: 45, max: 180 },\n  '15-30': { min: 15, max: 30 },\n  '30-45': { min: 30, max: 45 },\n  '45-59': { min: 45, max: 59 },\n  '60-90': { min: 60, max: 90 },\n};\nlet targetDurMin = 45, targetDurMax = 180; // default = livre\nfor (const [key, val] of Object.entries(durMap)) {\n  if (durSelection.includes(key)) { targetDurMin = val.min; targetDurMax = val.max; break; }\n}\n\n// ---- Map caption style dropdown to preset key ----\nconst styleSelection = item.json['Estilo das legendas'] || 'CapCut Bold';\nconst styleMap = {\n  'CapCut Bold': 'capcut-bold',\n  'Clean Minimal': 'clean-minimal',\n  'Neon Glow': 'neon-glow',\n  'MrBeast': 'mrbeast',\n  'Podcast': 'podcast',\n  'Karaoke': 'karaoke',\n};\nlet captionPreset = 'capcut-bold';\nfor (const [key, val] of Object.entries(styleMap)) {\n  if (styleSelection.includes(key)) { captionPreset = val; break; }\n}\n\n// ---- Map niche dropdown to clean string ----\nconst nicheRaw = item.json['Nicho do canal'] || 'tecnologia e internet';\n// Strip emoji prefix if present\nconst channelNiche = nicheRaw.replace(/^[^a-zA-ZÀ-ú]+/, '').trim() || 'tecnologia e internet';\n\nconst targetAudience = item.json['Público-alvo (opcional)'] || '';\n\nreturn {\n  json: {\n    videoSource: 'youtube',\n    videoId,\n    firstPublicationAt,\n    intervalHours: Number(item.json['Intervalo entre publicações (horas)']) || 6,\n    captionPreset,\n    targetDurMin,\n    targetDurMax,\n    channelNiche,\n    targetAudience,\n  }\n};"
       },
       "id": "b14465e8-4e8f-49d4-9f70-b670be621264",
       "name": "preparingField",
@@ -449,22 +489,28 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={\n  \"message\": \"✅ Shorts gerados com sucesso! Revise e aprove na planilha do Google Sheets.\",\n  \"totalShorts\": {{ $input.all().length }},\n  \"sheetsUrl\": \"https://docs.google.com/spreadsheets/d/1DeuormgMeAYmqrx7h1GqByNxJiNXMBhInEfkzCbuJ3I/edit?gid=0#gid=0\"\n}",
-        "options": {}
+        "respondWith": "text",
+        "responseBody": "<html><head><meta charset='utf-8'><title>Shorts gerados com sucesso!</title><style>body{font-family:sans-serif;background:#f9f9f9;margin:0;padding:0;} .container{max-width:420px;margin:40px auto;background:#fff;border-radius:12px;box-shadow:0 2px 12px #0001;padding:32px;text-align:center;} h1{color:#27ae60;font-size:2rem;margin-bottom:0.5em;} .desc{margin:1.2em 0 2em 0;color:#444;} .btn{display:inline-block;background:#27ae60;color:#fff;text-decoration:none;font-size:1.1rem;padding:0.9em 2em;border-radius:8px;transition:background 0.2s;font-weight:bold;margin-top:1em;} .btn:hover{background:#219150;} .emoji{font-size:2.2rem;display:block;margin-bottom:0.5em;} </style></head><body><div class='container'><span class='emoji'>✅</span><h1>Shorts gerados com sucesso!</h1><div class='desc'>📝 Revise e aprove os Shorts diretamente na planilha do Google Sheets.</div><a class='btn' href='https://docs.google.com/spreadsheets/d/1DeuormgMeAYmqrx7h1GqByNxJiNXMBhInEfkzCbuJ3I/edit?gid=0#gid=0' target='_blank'>Abrir planilha</a><div style='margin-top:2em;color:#888;font-size:0.95em;'>Total de Shorts: {{ $json.totalShorts || 5 }}</div></div></body></html>",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Content-Type", "value": "text/html; charset=utf-8" }
+            ]
+          }
+        }
       },
       "id": "df9a4538-d242-4b4c-b4b9-3703c7ad7a51",
       "name": "Respond to Webhook1",
       "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
+      "typeVersion": 1,
       "position": [
-        2360,
+        820,
         -560
       ]
     },
     {
       "parameters": {
-        "maxItems": 10
+        "maxItems": "={{ $('preparingField').item.json.maxShorts || 5 }}"
       },
       "id": "fd7aa0be-2965-4172-bab1-54e2d29a8d28",
       "name": "maxShortsnumber",
@@ -521,12 +567,12 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=original video title:  {{ $('current_item_ref').item.json.title }}\nshort transcript:  {{ $('current_item_ref').item.json['data.shorts'].text }}\nReason: {{ $('current_item_ref').item.json['data.shorts'].reason }}\n\n--- DYNAMIC STYLE DIRECTIVE (follow this closely) ---\n{{ $('fetchTrendStyle').item.json.style_directive }}\n\nTitle format to use: {{ $('fetchTrendStyle').item.json.title_format }}\nDescription format: {{ $('fetchTrendStyle').item.json.description_format }}\nSeasonal context: {{ $('fetchTrendStyle').item.json.seasonal_context }}\nTrending hashtags to consider: {{ ($('fetchTrendStyle').item.json.trending_hashtags || []).join(', ') }}\nHook templates for inspiration: {{ ($('fetchTrendStyle').item.json.trending_hooks || []).join(' | ') }}\nPatterns to AVOID: {{ ($('fetchTrendStyle').item.json.avoid_patterns || []).join(', ') }}",
-        "hasOutputParser": true,
+        "text": "=--- TRANSCRIÇÃO LITERAL DO TRECHO (fonte primária — base de todo o output) ---\n{{ $('current_item_ref').item.json['data.shorts'].text }}\n\nMotivo pelo qual este trecho foi selecionado: {{ $('current_item_ref').item.json['data.shorts'].reason }}\n\n--- CONTEXTO DO VÍDEO DE ORIGEM ---\nTítulo completo no YouTube (use apenas para extrair nome, cargo e empresa do convidado): {{ $('current_item_ref').item.json.videoTitle }}\n\n--- DIRETIVA DE TOM E ALCANCE ---\nTom recomendado: {{ $('fetchTrendStyle').item.json.style_directive }}\nHashtags para alcance orgânico: {{ ($('fetchTrendStyle').item.json.trending_hashtags || []).join(', ') }}\n\nPADRÕES ABSOLUTAMENTE PROIBIDOS: {{ ($('fetchTrendStyle').item.json.avoid_patterns || []).join(', ') }}",
+        "hasOutputParser": false,
         "messages": {
           "messageValues": [
             {
-              "message": "You are an expert YouTube Shorts Content Strategist AI with a critical mission: maximize virality and engagement while NEVER repeating the same style twice.\n\nYou will receive:\n1. **Content inputs**: video title, segment transcript, and reason for selection\n2. **A Dynamic Style Directive**: trend-aware instructions that change EVERY batch — you MUST follow them closely\n\nThe Style Directive reflects current social media trends, algorithm preferences, and audience behavior patterns. It tells you the EXACT tone, hook style, emoji usage, and hashtag strategy to use for THIS specific batch. Following it ensures each batch of Shorts feels fresh and algorithm-friendly.\n\n---\n\nBased on ALL inputs (content + style directive), generate:\n\n**short_title:**\n- Follow the title format specified in the style directive\n- Concise: under 70 characters (ideally under 50)\n- The hook style MUST match the directive's instructions\n- Use the language/tone specified (PT-BR unless stated otherwise)\n\n**short_description:**\n- Follow the description format from the style directive\n- Apply the emoji strategy exactly as directed\n- MUST include #shorts\n- Include trending hashtags from the directive when relevant\n- Apply the CTA approach specified in the directive\n- Keyword-rich but natural-sounding\n\n**short_tags:**\n- Mix of specific (from transcript) + trending (from directive)\n- Include 'shorts', 'youtubeshorts' always\n- Apply the hashtag strategy from the directive\n- 5-15 strong tags\n\n**youtube_category_id:**\n- Choose the MOST suitable category ID from the official list\n- Valid IDs: 1 (Film & Animation), 2 (Autos & Vehicles), 10 (Music), 15 (Pets & Animals), 17 (Sports), 18 (Short Movies), 19 (Travel & Events), 20 (Gaming), 21 (Videoblogging), 22 (People & Blogs), 23 (Comedy), 24 (Entertainment), 25 (News & Politics), 26 (Howto & Style), 27 (Education), 28 (Science & Technology), 29 (Nonprofits & Activism)\n\n---\n\nCRITICAL RULES:\n- ALWAYS follow the Dynamic Style Directive — it ensures variety across batches\n- NEVER use generic/template-sounding language\n- AVOID the patterns listed in 'Patterns to AVOID'\n- Each Short's metadata should feel like it was written by a different creator\n- Prioritize what the algorithm rewards RIGHT NOW, not outdated best practices"
+              "message": "Você é um especialista em metadados para YouTube Shorts de podcasts.\n\nSua única fonte de verdade para o CONTEÚDO é a TRANSCRIÇÃO LITERAL DO TRECHO fornecida no prompt. Não use o título do vídeo para inventar do que o trecho trata — use a transcrição. O título serve apenas para identificar nome, cargo e empresa do convidado.\n\nRETORNE APENAS um JSON válido:\n{\n  \"short_title\": \"Título baseado no TEMA ESPECÍFICO discutido na transcrição. Mencione o nome do convidado OU da empresa OU um dado/fato concreto que aparece no transcript. Máx. 70 chars, PT-BR. Exemplos bons: 'Como a DHL usa patrocínio global para gerar lead B2B', 'Por que a DHL patrocina events regionais e não só globais'. ABSOLUTAMENTE PROIBIDO: travessão (—), emojis de alarme, 'Você está MORTO', 'choque de realidade', 'disruptivo', perguntas retóricas de medo, frases de coach genérico.\",\n  \"short_description\": \"Estrutura obrigatória em ordem:\n(1) Primeira palavra ou frase obrigatória: o NOME DO CONVIDADO extraído do título original (ex: 'Ana Lima, Head de Marketing da DHL,' ou 'A equipe de marketing da DHL'). Sempre comece pela identificação da pessoa ou empresa.\n(2) 1-2 frases que descrevem o que É DITO especificamente na transcrição — cite um argumento, dado, estratégia ou decisão real mencionada. NÃO resuma o vídeo inteiro.\n(3) Hashtags de nicho específicas do conteúdo + #podcast + #shorts\nPROIBIDO: travessão (—), URL na descrição, descrever o vídeo inteiro, linguagem genérica, sensacionalismo.\",\n  \"short_tags\": [\"nome-empresa-ou-convidado\", \"tema-do-transcript\", \"podcast\", \"shorts\", \"youtubeshorts\"],\n  \"youtube_category_id\": 22\n}\n\nREGRAS ABSOLUTAS:\n- A descrição SEMPRE começa pelo nome/identificação do convidado ou empresa\n- A descrição deve ser sobre O QUE É FALADO NO TRECHO, não sobre o vídeo em geral\n- NUNCA use travessão (—) em nenhum campo\n- NÃO inclua URL na descrição — a URL é gerenciada separadamente\n- Retorne APENAS o JSON, sem markdown, sem texto extra\n- short_tags: 5-12 tags — específicas do transcript, nunca genéricas\n- Padrões PROIBIDOS têm prioridade absoluta sobre qualquer outra instrução"
             }
           ]
         }
@@ -538,6 +584,20 @@
       "position": [
         2720,
         -260
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extract JSON from LLM response (handles markdown blocks, extra text, etc.)\nconst raw = item.json.text || item.json.response || JSON.stringify(item.json);\n\n// Try to find JSON in the response\nlet parsed = null;\ntry {\n  // Direct parse\n  parsed = JSON.parse(raw);\n} catch(e) {\n  // Try extracting from markdown code block\n  const match = raw.match(/```(?:json)?\\s*([\\s\\S]*?)```/);\n  if (match) {\n    try { parsed = JSON.parse(match[1].trim()); } catch(e2) {}\n  }\n  // Try finding JSON object in text\n  if (!parsed) {\n    const braceMatch = raw.match(/\\{[\\s\\S]*\\}/);\n    if (braceMatch) {\n      try { parsed = JSON.parse(braceMatch[0]); } catch(e3) {}\n    }\n  }\n}\n\n// Fallback defaults\nconst output = {\n  short_title: parsed?.short_title || 'Short do vídeo',\n  short_description: parsed?.short_description || 'Assista ao short completo! #shorts',\n  short_tags: parsed?.short_tags || ['shorts', 'youtubeshorts'],\n  youtube_category_id: parsed?.youtube_category_id || 22,\n};\n\nreturn { json: { output } };"
+      },
+      "id": "parse-metadata-001",
+      "name": "parseMetadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2900,
+        -340
       ]
     },
     {
@@ -656,6 +716,18 @@
               "id": "pa-11",
               "name": "YouTube Link",
               "value": "",
+              "type": "string"
+            },
+            {
+              "id": "pa-12",
+              "name": "Vídeo Original URL",
+              "value": "=https://www.youtube.com/watch?v={{ $('preparingField').item.json.videoId }}",
+              "type": "string"
+            },
+            {
+              "id": "pa-13",
+              "name": "Canal / Convidado",
+              "value": "={{ $('current_item_ref').item.json.videoUploader }}",
               "type": "string"
             }
           ]
@@ -845,13 +917,7 @@
     },
     "Is Error?": {
       "main": [
-        [
-          {
-            "node": "Respond Error",
-            "type": "main",
-            "index": 0
-          }
-        ],
+        [],
         [
           {
             "node": "Wait",
@@ -913,6 +979,11 @@
             "node": "Wait",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -952,33 +1023,6 @@
           {
             "node": "generatingMetaData",
             "type": "ai_languageModel",
-            "index": 0
-          },
-          {
-            "node": "Auto-fixing Output Parser",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Auto-fixing Output Parser": {
-      "ai_outputParser": [
-        [
-          {
-            "node": "generatingMetaData",
-            "type": "ai_outputParser",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Structured Output Parser": {
-      "ai_outputParser": [
-        [
-          {
-            "node": "Auto-fixing Output Parser",
-            "type": "ai_outputParser",
             "index": 0
           }
         ]
@@ -1069,16 +1113,21 @@
     },
     "verifyingLoopOutput": {
       "main": [
+        []
+      ]
+    },
+    "generatingMetaData": {
+      "main": [
         [
           {
-            "node": "Respond to Webhook1",
+            "node": "parseMetadata",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "generatingMetaData": {
+    "parseMetadata": {
       "main": [
         [
           {

@@ -180,6 +180,12 @@
               "name": "shortNumber",
               "value": "={{ $('Is Approved?').item.json['Short #'] }}",
               "type": "string"
+            },
+            {
+              "id": "meta-08",
+              "name": "originalVideoUrl",
+              "value": "={{ $('Is Approved?').item.json['V\u00eddeo Original URL'] }}",
+              "type": "string"
             }
           ]
         },

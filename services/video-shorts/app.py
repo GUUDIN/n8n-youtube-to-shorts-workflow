@@ -85,18 +85,26 @@ def get_gemini():
 # ===========================================================================
 # 1. YouTube Download
 # ===========================================================================
-def download_youtube(video_id: str, output_dir: Path) -> str:
-    """Download a YouTube video and return the local file path.
+def download_youtube(video_id: str, output_dir: Path) -> tuple[str, dict]:
+    """Download a YouTube video; returns (local_path, yt_info_dict).
 
-    If the file already exists on disk (previous job), skip the download.
+    yt_info_dict includes at minimum: title, uploader, webpage_url.
+    If the file is already cached, metadata is fetched without re-downloading.
     """
-    # Check for cached file first
+    url = f"https://www.youtube.com/watch?v={video_id}"
     expected = output_dir / f"{video_id}.mp4"
+    _meta_only_opts = {"quiet": True, "no_warnings": True}
+
     if expected.exists() and expected.stat().st_size > 1_000_000:
         log.info("Using cached video: %s", expected)
-        return str(expected)
+        try:
+            with yt_dlp.YoutubeDL(_meta_only_opts) as ydl:
+                info = ydl.extract_info(url, download=False) or {}
+        except Exception as exc:
+            log.warning("Metadata fetch failed for cached %s: %s", video_id, exc)
+            info = {}
+        return str(expected), info
 
-    url = f"https://www.youtube.com/watch?v={video_id}"
     ydl_opts = {
         "format": "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
         "outtmpl": str(output_dir / "%(id)s.%(ext)s"),
@@ -106,28 +114,34 @@ def download_youtube(video_id: str, output_dir: Path) -> str:
         "postprocessors": [{"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}],
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
+        info = ydl.extract_info(url, download=True) or {}
         # yt-dlp may merge to mp4
-        expected = output_dir / f"{info['id']}.mp4"
+        vid_id = info.get("id", video_id)
+        expected = output_dir / f"{vid_id}.mp4"
         if expected.exists():
-            return str(expected)
+            return str(expected), info
         # Fallback: find whatever file was downloaded
-        files = list(output_dir.glob(f"{info['id']}.*"))
+        files = list(output_dir.glob(f"{vid_id}.*"))
         if files:
-            return str(files[0])
+            return str(files[0]), info
         raise FileNotFoundError(f"Downloaded file not found for {video_id}")
 
 
 # ===========================================================================
 # 2. Whisper Transcription
 # ===========================================================================
-def transcribe_video(video_path: str) -> list[dict]:
+def transcribe_video(video_path: str, language: str | None = None) -> list[dict]:
     """Transcribe with word-level timestamps via faster-whisper."""
     model = get_whisper()
-    segments_iter, info = model.transcribe(
-        video_path,
+    transcribe_kwargs = dict(
         word_timestamps=True,
         vad_filter=False,
+    )
+    if language:
+        transcribe_kwargs["language"] = language
+    segments_iter, info = model.transcribe(
+        video_path,
+        **transcribe_kwargs,
     )
     results = []
     for seg in segments_iter:
@@ -1097,6 +1111,7 @@ def cut_and_caption(
     orig_w: int = 0,
     orig_h: int = 0,
     preset_name: str | None = None,
+    language: str | None = None,
 ) -> Path:
     """Cut a segment, add captions, and output as 9:16 vertical MP4."""
     duration = end - start
@@ -1114,7 +1129,7 @@ def cut_and_caption(
 
     # Correct captions with Gemini before rendering
     if has_subs:
-        words = correct_transcript_segment(words)
+        words = correct_transcript_segment(words, language=language or "pt")
         generate_ass(words, start, ass_path, preset_name=preset_name)
 
     # --- Scene-based speaker-following crop ---
@@ -1189,7 +1204,7 @@ def cut_and_caption(
 # ===========================================================================
 # Background Job Processing
 # ===========================================================================
-def process_job(job_id: str, video_id: str, target_dur_min: int = 45, target_dur_max: int = 59):
+def process_job(job_id: str, video_id: str, target_dur_min: int = 45, target_dur_max: int = 59, language: str | None = None):
     """Full pipeline: download → transcribe → analyze."""
     try:
         job_dir = VIDEOS / job_id
@@ -1210,8 +1225,10 @@ def process_job(job_id: str, video_id: str, target_dur_min: int = 45, target_dur
                 link.symlink_to(cached)
 
         log.info("[%s] Downloading YouTube video %s …", job_id, video_id)
-        video_path = download_youtube(video_id, job_dir)
-        log.info("[%s] Download complete: %s", job_id, video_path)
+        video_path, video_info = download_youtube(video_id, job_dir)
+        video_title = video_info.get("title", "")
+        video_uploader = video_info.get("uploader", "")
+        log.info("[%s] Download complete: %s (título: %s)", job_id, video_path, video_title or "—")
 
         # Detect all camera angles (multi-camera podcast support)
         log.info("[%s] Detecting camera angles …", job_id)
@@ -1222,8 +1239,8 @@ def process_job(job_id: str, video_id: str, target_dur_min: int = 45, target_dur
         orig_h = int(_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         _cap.release()
 
-        log.info("[%s] Transcribing …", job_id)
-        transcript = transcribe_video(video_path)
+        log.info("[%s] Transcribing (language=%s) …", job_id, language or "auto")
+        transcript = transcribe_video(video_path, language=language)
         duration = transcript[-1]["end"] if transcript else 0
         log.info(
             "[%s] Transcription complete: %d segments, %.0fs total",
@@ -1258,6 +1275,10 @@ def process_job(job_id: str, video_id: str, target_dur_min: int = 45, target_dur
         jobs[job_id] = {
             "id": job_id,
             "status": "COMPLETED",
+            "videoId": video_id,
+            "videoTitle": video_title,
+            "videoUploader": video_uploader,
+            "videoUrl": f"https://www.youtube.com/watch?v={video_id}",
             "data": {"shorts": shorts},
             # Internal – not exposed in API but used by render
             "_video_path": video_path,
@@ -1265,6 +1286,7 @@ def process_job(job_id: str, video_id: str, target_dur_min: int = 45, target_dur
             "_camera_angles": camera_angles,
             "_orig_w": orig_w,
             "_orig_h": orig_h,
+            "_language": language,
         }
         log.info("[%s] Job COMPLETED ✓", job_id)
 
@@ -1304,6 +1326,7 @@ def process_render(
             orig_w=job.get("_orig_w", 0),
             orig_h=job.get("_orig_h", 0),
             preset_name=preset_name,
+            language=job.get("_language"),
         )
         renders[render_id] = {
             "type": "done",
@@ -1326,6 +1349,7 @@ class JobRequest(BaseModel):
     videoSource: str = "youtube"
     targetDurationMin: int = 45
     targetDurationMax: int = 59
+    language: str | None = None  # Whisper language hint (e.g. 'pt', 'en', 'es')
 
 
 # ===========================================================================
@@ -1338,6 +1362,7 @@ async def create_job(request: JobRequest, background_tasks: BackgroundTasks):
     background_tasks.add_task(
         process_job, job_id, request.youtubeVideoId,
         request.targetDurationMin, request.targetDurationMax,
+        request.language,
     )
     return {"id": job_id, "status": "PROCESSING"}
 
@@ -1400,26 +1425,24 @@ async def healthz():
 # ===========================================================================
 STYLE_TONES = [
     "casual e descontraído, como se falasse com um amigo",
-    "urgente e direto, como um alerta imperdível",
-    "provocativo e polêmico, desafiando a opinião popular",
     "storytelling envolvente, como um mini-documentário",
     "educacional e empolgante, como um professor apaixonado",
-    "humorístico e irreverente, com sarcasmo inteligente",
-    "inspiracional e motivador, como um coach energético",
-    "misterioso e intrigante, gerando máxima curiosidade",
-    "conversacional com gírias atuais da internet BR",
-    "jornalístico e factual, como breaking news",
+    "humorístico e inteligente, sem exagero ou sarcasmo forçado",
+    "conversacional usando o vocabulário natural do público-alvo",
+    "jornalístico e factual, com dados e contexto real",
+    "analítico e direto, como um especialista do setor",
+    "inspiracional com base em resultados reais e concretos",
 ]
 
+# These are content framing approaches — how the content angle is presented,
+# NOT clickbait hook styles. They inform tone/framing, never title wording directly.
 HOOK_STYLES = [
-    "pergunta provocativa que força o clique",
-    "afirmação chocante ou contraintuitiva",
-    "número ou estatística surpreendente",
-    "desafio direto ao espectador",
-    "teaser do tipo 'o que aconteceu depois vai te surpreender'",
-    "referência a polêmica ou trend atual",
-    "comparação inesperada entre dois assuntos",
-    "declaração 'a maioria não sabe disso'",
+    "abre com o dado, resultado ou nome central do conteúdo",
+    "apresenta o contexto da situação antes de revelar o insight",
+    "nomeia a marca, pessoa ou evento antes de qualquer adjetivo",
+    "destaca a pergunta real que foi feita no vídeo",
+    "aponta o aprendizado ou conclusão principal do trecho",
+    "apresenta de forma factual o contraste entre expectativa e resultado",
 ]
 
 CTA_STYLES = [
@@ -1446,40 +1469,36 @@ HASHTAG_STRATEGIES = [
     "apenas #shorts + 1 hashtag de nicho",
 ]
 
-TREND_STYLE_PROMPT = """You are a Social Media Trend Analyst specialized in YouTube Shorts algorithm optimization.
+TREND_STYLE_PROMPT = """You are a YouTube Shorts distribution analyst. Your job is NOT to generate titles or descriptions — that happens in a separate step. Your job is to provide style and tone guidance so that the metadata (title, description, tags) reaches the target audience organically on the platform.
 
 Current date: {date}
 Channel niche: {niche}
 {audience_context}
 
-Your job: Generate a UNIQUE content style directive for YouTube Shorts metadata that reflects CURRENT trends and algorithm preferences. Each directive must be DIFFERENT from typical approaches to keep content fresh and avoid algorithm fatigue.
-
-MANDATORY STYLE PARAMETERS for this batch:
-- Tone: {tone}
-- Hook style: {hook_style}
+Style parameters for this batch:
+- Writing tone: {tone}
+- Content framing: {hook_style}
 - CTA approach: {cta_style}
-- Emoji strategy: {emoji_strategy}
-- Hashtag strategy: {hashtag_strategy}
+- Emoji usage: {emoji_strategy}
+- Hashtag approach: {hashtag_strategy}
 
-Consider these algorithm factors for {date}:
-1. YouTube Shorts algorithm currently favors: high retention in first 3 seconds, strong hooks, searchable titles
-2. Trending content formats on short-form video right now
-3. Seasonal events, cultural moments, or viral trends happening around this date
-4. What's working for {niche} creators RIGHT NOW vs what's oversaturated
-5. Platform-specific language patterns that drive engagement (PT-BR audience focus)
-
-Generate a detailed style directive in JSON format:
+Generate a JSON object with guidance for metadata generation:
 {{
-  "style_directive": "A 2-3 sentence instruction describing EXACTLY how titles, descriptions, and tags should be written for this batch. Be very specific about tone, word choice, and structure.",
-  "trending_hooks": ["3-5 hook templates that work right now for {niche}"],
-  "avoid_patterns": ["2-3 patterns that are oversaturated or penalized by the algorithm"],
-  "trending_hashtags": ["5-8 hashtags currently trending for {niche} content"],
-  "title_format": "A specific format template for titles (e.g., 'EMOTION + TOPIC + HOOK')",
-  "description_format": "A specific structure for descriptions",
-  "seasonal_context": "Any seasonal/cultural context to leverage right now"
+  "style_directive": "2-3 sentences describing the TONE and WRITING STYLE appropriate for this audience. Focus on how the language, formality and framing matches what the target audience expects. Do NOT suggest alarm language, urgency manipulation, sensationalism or clickbait of any kind.",
+  "avoid_patterns": [
+    "lista com 5-7 padrões ESPECÍFICOS a evitar que prejudicam alcance orgânico ou credibilidade com este público. SEMPRE inclua: títulos com emoji-alarme (🚨💀), 'Você está MORTO', 'choque de realidade', 'questionar o status quo', 'disruptivo', perguntas retóricas de medo, frases de coach motivacional genérico"
+  ],
+  "trending_hashtags": ["5-8 hashtags que ajudam este conteúdo a chegar organicamente ao público de {niche} — mistura de tags de nicho específicas e tags de descoberta ampla"],
+  "title_format": "Formato simples e profissional para títulos que reflita o tom do público (exemplo: 'NOME/MARCA + TEMA + RESULTADO')",
+  "description_format": "Estrutura breve para descrição focada em contexto e palavras-chave para alcance orgânico",
+  "seasonal_context": "Contexto sazonal ou cultural relevante para {date} que possa guiar relevância de tópico — ou string vazia se não houver nada relevante"
 }}
 
-Return ONLY valid JSON, no markdown fences."""
+IMPORTANT:
+- style_directive must NEVER suggest urgency, alarm, provocative framing or sensationalism
+- avoid_patterns must always explicitly include emoji-alarm titles, 'Você está MORTO', 'choque de realidade', coach-speak
+- trending_hashtags must prioritize organic discoverability for this specific audience, not general virality
+- Return ONLY valid JSON, no markdown fences"""
 
 
 @app.get("/api/trend-style")
@@ -1548,14 +1567,21 @@ async def get_trend_style(niche: str = "tecnologia e internet", audience: str = 
         return {
             "style_directive": (
                 f"Use um tom {random.choice(STYLE_TONES)}. "
-                f"Títulos com {random.choice(HOOK_STYLES)}. "
-                "Varie o formato para não repetir padrões."
+                f"Enquadre o conteúdo de forma a {random.choice(HOOK_STYLES)}. "
+                "Títulos profissionais com nomes, marcas e resultados concretos."
             ),
-            "trending_hooks": [],
-            "avoid_patterns": ["títulos genéricos", "clickbait óbvio"],
-            "trending_hashtags": ["#shorts", "#viral"],
-            "title_format": "GANCHO + TEMA + CURIOSIDADE",
-            "description_format": "Contexto breve + hashtags relevantes + #shorts",
+            "avoid_patterns": [
+                "emojis de alarme (🚨💀) no título",
+                "Você está MORTO",
+                "choque de realidade",
+                "questionar o status quo",
+                "frases de coach motivacional genérico",
+                "perguntas retóricas de medo",
+                "clickbait sensacionalista",
+            ],
+            "trending_hashtags": ["#shorts", "#youtubeshorts"],
+            "title_format": "NOME/MARCA + TEMA + RESULTADO",
+            "description_format": "Contexto real do trecho + hashtags de nicho + #shorts",
             "seasonal_context": "",
             "_error": str(e),
         }
