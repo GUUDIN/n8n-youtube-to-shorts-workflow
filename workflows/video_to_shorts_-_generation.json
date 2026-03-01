@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-03-01T15:57:57.841Z",
+  "updatedAt": "2026-03-01T17:45:41.782Z",
   "createdAt": "2026-03-01T00:39:33.637Z",
   "id": "hGpeZnulV01ifHHy",
   "name": "Video to Shorts - Generation",
@@ -854,6 +854,30 @@
         1088,
         -464
       ]
+    },
+    {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Resposta Imediata",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        700,
+        -320
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Processando...</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0f0f;color:#fff;min-height:100vh;display:flex;align-items:center;justify-content:center}.card{background:#1a1a1a;border-radius:16px;padding:40px 32px;max-width:420px;width:100%;text-align:center;border:1px solid #2a2a2a}.spinner{width:56px;height:56px;border:4px solid #2a2a2a;border-top:4px solid #27ae60;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 24px}@keyframes spin{to{transform:rotate(360deg)}}h1{font-size:1.4rem;font-weight:600;margin-bottom:8px}.sub{color:#888;font-size:.95rem;margin-bottom:28px;line-height:1.5}.steps{text-align:left;background:#111;border-radius:10px;padding:16px 20px;margin-bottom:24px}.step{display:flex;align-items:center;gap:12px;padding:7px 0;font-size:.88rem;color:#555}.step.active{color:#fff}.step.done{color:#27ae60}.dot{width:8px;height:8px;border-radius:50%;background:#2a2a2a;flex-shrink:0}.step.active .dot{background:#27ae60;animation:pulse 1.5s ease-in-out infinite}.step.done .dot{background:#27ae60}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}.eta{font-size:.82rem;color:#555;margin-bottom:20px;line-height:1.5}.btn{display:inline-block;background:#1e3a2e;color:#27ae60;text-decoration:none;font-size:.9rem;padding:11px 22px;border-radius:8px;border:1px solid #2d5a3d;font-weight:500;transition:.2s}.btn:hover{background:#27ae60;color:#fff}.note{font-size:.75rem;color:#333;margin-top:14px}</style></head><body><div class=\"card\"><div class=\"spinner\"></div><h1>Processando seu vídeo</h1><p class=\"sub\">Recebido com sucesso.<br>Este processo leva entre 5 e 20 minutos.</p><div class=\"steps\" id=\"steps\"><div class=\"step done\"><div class=\"dot\"></div>Vídeo recebido</div><div class=\"step active\"><div class=\"dot\"></div>Download + transcrição (Whisper)</div><div class=\"step\"><div class=\"dot\"></div>Análise dos melhores trechos (Gemini)</div><div class=\"step\"><div class=\"dot\"></div>Renderização dos Shorts (ffmpeg)</div><div class=\"step\"><div class=\"dot\"></div>Geração de títulos e descrições</div></div><p class=\"eta\">⏱ Pode fechar esta aba. Quando terminar, os Shorts aparecem automaticamente na planilha.</p><a class=\"btn\" href=\"https://docs.google.com/spreadsheets/d/1DeuormgMeAYmqrx7h1GqByNxJiNXMBhInEfkzCbuJ3I/edit\" target=\"_blank\">Acompanhar na planilha →</a><p class=\"note\">clipwave.app</p></div><script>const steps=document.querySelectorAll('.step');let cur=1;const timing=[50000,100000,130000,70000];function next(){if(cur>=steps.length)return;steps[cur-1].className='step done';steps[cur].className='step active';cur++;if(cur<steps.length)setTimeout(next,timing[cur-1]||60000);}setTimeout(next,timing[0]);</script></body></html>",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      }
     }
   ],
   "connections": {
@@ -946,7 +970,7 @@
       "main": [
         [
           {
-            "node": "preparingField",
+            "node": "Resposta Imediata",
             "type": "main",
             "index": 0
           }
@@ -1176,10 +1200,23 @@
           }
         ]
       ]
+    },
+    "Resposta Imediata": {
+      "main": [
+        [
+          {
+            "node": "preparingField",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
   },
   "staticData": null,
   "meta": {
@@ -1187,8 +1224,8 @@
     "instanceId": "n8n-local-smoke"
   },
   "pinData": {},
-  "versionId": "c0ebf7ce-1d71-404c-a81c-3fb877401f85",
-  "activeVersionId": "c0ebf7ce-1d71-404c-a81c-3fb877401f85",
+  "versionId": "7dbca282-6f00-463b-a59a-40be835745ea",
+  "activeVersionId": "7dbca282-6f00-463b-a59a-40be835745ea",
   "triggerCount": 1,
   "shared": [
     {
@@ -1200,9 +1237,9 @@
     }
   ],
   "activeVersion": {
-    "updatedAt": "2026-03-01T15:58:20.225Z",
-    "createdAt": "2026-03-01T15:57:56.323Z",
-    "versionId": "c0ebf7ce-1d71-404c-a81c-3fb877401f85",
+    "updatedAt": "2026-03-01T17:45:41.785Z",
+    "createdAt": "2026-03-01T17:45:41.785Z",
+    "versionId": "7dbca282-6f00-463b-a59a-40be835745ea",
     "workflowId": "hGpeZnulV01ifHHy",
     "nodes": [
       {
@@ -2053,6 +2090,30 @@
           1088,
           -464
         ]
+      },
+      {
+        "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "name": "Resposta Imediata",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [
+          700,
+          -320
+        ],
+        "parameters": {
+          "respondWith": "text",
+          "responseBody": "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Processando...</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0f0f;color:#fff;min-height:100vh;display:flex;align-items:center;justify-content:center}.card{background:#1a1a1a;border-radius:16px;padding:40px 32px;max-width:420px;width:100%;text-align:center;border:1px solid #2a2a2a}.spinner{width:56px;height:56px;border:4px solid #2a2a2a;border-top:4px solid #27ae60;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 24px}@keyframes spin{to{transform:rotate(360deg)}}h1{font-size:1.4rem;font-weight:600;margin-bottom:8px}.sub{color:#888;font-size:.95rem;margin-bottom:28px;line-height:1.5}.steps{text-align:left;background:#111;border-radius:10px;padding:16px 20px;margin-bottom:24px}.step{display:flex;align-items:center;gap:12px;padding:7px 0;font-size:.88rem;color:#555}.step.active{color:#fff}.step.done{color:#27ae60}.dot{width:8px;height:8px;border-radius:50%;background:#2a2a2a;flex-shrink:0}.step.active .dot{background:#27ae60;animation:pulse 1.5s ease-in-out infinite}.step.done .dot{background:#27ae60}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}.eta{font-size:.82rem;color:#555;margin-bottom:20px;line-height:1.5}.btn{display:inline-block;background:#1e3a2e;color:#27ae60;text-decoration:none;font-size:.9rem;padding:11px 22px;border-radius:8px;border:1px solid #2d5a3d;font-weight:500;transition:.2s}.btn:hover{background:#27ae60;color:#fff}.note{font-size:.75rem;color:#333;margin-top:14px}</style></head><body><div class=\"card\"><div class=\"spinner\"></div><h1>Processando seu vídeo</h1><p class=\"sub\">Recebido com sucesso.<br>Este processo leva entre 5 e 20 minutos.</p><div class=\"steps\" id=\"steps\"><div class=\"step done\"><div class=\"dot\"></div>Vídeo recebido</div><div class=\"step active\"><div class=\"dot\"></div>Download + transcrição (Whisper)</div><div class=\"step\"><div class=\"dot\"></div>Análise dos melhores trechos (Gemini)</div><div class=\"step\"><div class=\"dot\"></div>Renderização dos Shorts (ffmpeg)</div><div class=\"step\"><div class=\"dot\"></div>Geração de títulos e descrições</div></div><p class=\"eta\">⏱ Pode fechar esta aba. Quando terminar, os Shorts aparecem automaticamente na planilha.</p><a class=\"btn\" href=\"https://docs.google.com/spreadsheets/d/1DeuormgMeAYmqrx7h1GqByNxJiNXMBhInEfkzCbuJ3I/edit\" target=\"_blank\">Acompanhar na planilha →</a><p class=\"note\">clipwave.app</p></div><script>const steps=document.querySelectorAll('.step');let cur=1;const timing=[50000,100000,130000,70000];function next(){if(cur>=steps.length)return;steps[cur-1].className='step done';steps[cur].className='step active';cur++;if(cur<steps.length)setTimeout(next,timing[cur-1]||60000);}setTimeout(next,timing[0]);</script></body></html>",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Content-Type",
+                  "value": "text/html; charset=utf-8"
+                }
+              ]
+            }
+          }
+        }
       }
     ],
     "connections": {
@@ -2145,7 +2206,7 @@
         "main": [
           [
             {
-              "node": "preparingField",
+              "node": "Resposta Imediata",
               "type": "main",
               "index": 0
             }
@@ -2375,11 +2436,22 @@
             }
           ]
         ]
+      },
+      "Resposta Imediata": {
+        "main": [
+          [
+            {
+              "node": "preparingField",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
       }
     },
     "authors": "Pedro Gudin",
-    "name": "Version 1.9.1.1",
-    "description": "",
+    "name": null,
+    "description": null,
     "autosaved": false
   },
   "tags": []
