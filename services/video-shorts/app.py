@@ -99,21 +99,31 @@ def download_youtube(video_id: str, output_dir: Path) -> tuple[str, dict]:
 
     yt_info_dict includes at minimum: title, uploader, webpage_url.
     If the file is already cached, metadata is fetched without re-downloading.
+
+    Retry strategy: if cookies cause a bot-detection error we retry WITHOUT
+    cookies so the PO-token + EJS combo can still succeed for many videos.
     """
     url = f"https://www.youtube.com/watch?v={video_id}"
     expected = output_dir / f"{video_id}.mp4"
     _cookies_file = "/app/yt-cookies.txt"
-    _cookie_opt = {"cookiefile": _cookies_file} if os.path.exists(_cookies_file) else {}
+    _has_cookies = os.path.exists(_cookies_file) and os.path.getsize(_cookies_file) > 50
     _proxy_opt = {"proxy": YTDLP_PROXY} if YTDLP_PROXY else {}
     # Use web client + EJS challenge solver + PO Token for datacenter IPs.
     # js_runtimes must explicitly include node so yt-dlp can solve sig/n challenges.
     _extractor_args = {"youtube": {"player_client": ["web"]}}
-    _common_opts = {
+    _base_opts = {
         "extractor_args": _extractor_args,
         "js_runtimes": {"node": {}},
-        **_cookie_opt,
         **_proxy_opt,
     }
+
+    def _make_common(use_cookies: bool) -> dict:
+        opts = dict(_base_opts)
+        if use_cookies and _has_cookies:
+            opts["cookiefile"] = _cookies_file
+        return opts
+
+    _common_opts = _make_common(use_cookies=True)
     _meta_only_opts = {"quiet": True, "no_warnings": True, **_common_opts}
 
     if expected.exists() and expected.stat().st_size > 1_000_000:
@@ -126,27 +136,43 @@ def download_youtube(video_id: str, output_dir: Path) -> tuple[str, dict]:
             info = {}
         return str(expected), info
 
-    ydl_opts = {
-        "format": "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
-        "outtmpl": str(output_dir / "%(id)s.%(ext)s"),
-        "merge_output_format": "mp4",
-        "quiet": True,
-        "no_warnings": True,
-        "postprocessors": [{"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}],
-        **_common_opts,
-    }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True) or {}
-        # yt-dlp may merge to mp4
-        vid_id = info.get("id", video_id)
-        expected = output_dir / f"{vid_id}.mp4"
-        if expected.exists():
-            return str(expected), info
-        # Fallback: find whatever file was downloaded
-        files = list(output_dir.glob(f"{vid_id}.*"))
-        if files:
-            return str(files[0]), info
-        raise FileNotFoundError(f"Downloaded file not found for {video_id}")
+    def _try_download(use_cookies: bool) -> tuple[str, dict]:
+        label = "with cookies" if (use_cookies and _has_cookies) else "without cookies"
+        log.info("[%s] Attempting download %s …", video_id, label)
+        common = _make_common(use_cookies)
+        ydl_opts = {
+            "format": "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
+            "outtmpl": str(output_dir / "%(id)s.%(ext)s"),
+            "merge_output_format": "mp4",
+            "quiet": True,
+            "no_warnings": True,
+            "postprocessors": [{"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}],
+            **common,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True) or {}
+            vid_id = info.get("id", video_id)
+            out = output_dir / f"{vid_id}.mp4"
+            if out.exists():
+                return str(out), info
+            files = list(output_dir.glob(f"{vid_id}.*"))
+            if files:
+                return str(files[0]), info
+            raise FileNotFoundError(f"Downloaded file not found for {video_id}")
+
+    # Attempt 1: with cookies (if available)
+    try:
+        return _try_download(use_cookies=True)
+    except Exception as first_err:
+        is_bot_error = any(k in str(first_err).lower() for k in ["bot", "sign in", "confirm"])
+        if is_bot_error and _has_cookies:
+            log.warning("[%s] Bot detection with cookies — retrying WITHOUT cookies …", video_id)
+            try:
+                return _try_download(use_cookies=False)
+            except Exception as second_err:
+                log.error("[%s] Also failed without cookies: %s", video_id, second_err)
+                raise second_err from first_err
+        raise
 
 
 # ===========================================================================
@@ -1320,7 +1346,12 @@ def process_job(job_id: str, video_id: str, target_dur_min: int = 45, target_dur
 
     except Exception as e:
         log.exception("[%s] Job FAILED", job_id)
-        jobs[job_id] = {"id": job_id, "status": "ERROR", "error": str(e)}
+        jobs[job_id] = {
+            "id": job_id,
+            "status": "ERROR",
+            "error": str(e),
+            "_created": jobs[job_id].get("_created", datetime.now(timezone.utc).timestamp()),
+        }
 
 
 def process_render(
