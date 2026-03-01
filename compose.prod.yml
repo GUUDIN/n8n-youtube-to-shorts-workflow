@@ -38,6 +38,7 @@ services:
     volumes:
       - ./vol/video-shorts:/data
       - ./yt-cookies.txt:/app/yt-cookies.txt:ro
+      - ./services/video-shorts/app.py:/app/app.py:ro
     healthcheck:
       test: ['CMD-SHELL', 'python -c "import urllib.request; urllib.request.urlopen(\"http://localhost:8000/healthz\")" || exit 1']
       interval: 10s
