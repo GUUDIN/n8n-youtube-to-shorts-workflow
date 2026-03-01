@@ -156,6 +156,35 @@ GET  /healthz               — Health check
 | Faces not detected | MediaPipe needs faces within 5m of camera. Ensure `min_detection_confidence=0.5` is appropriate for your content. |
 | Captions too wide | Smart chunking limits to ~22 uppercase characters per line. Adjust `MAX_CHARS` in `generate_ass()` if needed. |
 
+## Mantendo o projeto (dia a dia)
+
+O fluxo de trabalho para evoluir o projeto é:
+
+```
+1. Edite o workflow em clipwave.app
+2. git add .
+3. git commit -m "feat: descrição da mudança"   ← sincroniza automaticamente
+4. git push
+```
+
+No passo 3, um hook automático (`pre-commit`) detecta se o workflow mudou no n8n, baixa a versão atualizada e já inclui no commit. Você não precisa fazer mais nada.
+
+### Primeira configuração após clonar
+
+```bash
+# 1. Instalar o hook (uma vez por máquina)
+./scripts/install-hooks.sh
+
+# 2. Criar o arquivo com a chave da API do n8n
+echo "N8N_API_KEY=sua_chave" > .env.sync
+```
+
+A chave da API fica em `clipwave.app/home` → seu nome → **Settings → n8n API → Create API Key**.
+
+O arquivo `.env.sync` não vai para o git (está no `.gitignore`).
+
+---
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
