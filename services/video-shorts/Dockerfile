@@ -20,6 +20,7 @@ RUN for i in 1 2 3 4 5; do \
             fonts-font-awesome \
             wget \
             fontconfig \
+            nodejs \
         && rm -rf /var/lib/apt/lists/* && break \
         || { echo "Attempt $i failed, retrying in 10s..."; sleep 10; }; \
     done
