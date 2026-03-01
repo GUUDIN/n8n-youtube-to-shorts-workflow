@@ -105,11 +105,16 @@ def download_youtube(video_id: str, output_dir: Path) -> tuple[str, dict]:
     _cookies_file = "/app/yt-cookies.txt"
     _cookie_opt = {"cookiefile": _cookies_file} if os.path.exists(_cookies_file) else {}
     _proxy_opt = {"proxy": YTDLP_PROXY} if YTDLP_PROXY else {}
-    # Use ios+web player clients to bypass sig/n challenge restrictions on cloud IPs.
-    # ios client returns HLS streams (no sig/n challenge needed).
-    # web client is kept as fallback and supports cookies for private/age-restricted videos.
-    _extractor_args = {"youtube": {"player_client": ["ios", "web"]}}
-    _meta_only_opts = {"quiet": True, "no_warnings": True, "extractor_args": _extractor_args, **_cookie_opt, **_proxy_opt}
+    # Use web client + EJS challenge solver + PO Token for datacenter IPs.
+    # js_runtimes must explicitly include node so yt-dlp can solve sig/n challenges.
+    _extractor_args = {"youtube": {"player_client": ["web"]}}
+    _common_opts = {
+        "extractor_args": _extractor_args,
+        "js_runtimes": {"node": {}},
+        **_cookie_opt,
+        **_proxy_opt,
+    }
+    _meta_only_opts = {"quiet": True, "no_warnings": True, **_common_opts}
 
     if expected.exists() and expected.stat().st_size > 1_000_000:
         log.info("Using cached video: %s", expected)
@@ -128,9 +133,7 @@ def download_youtube(video_id: str, output_dir: Path) -> tuple[str, dict]:
         "quiet": True,
         "no_warnings": True,
         "postprocessors": [{"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}],
-        "extractor_args": _extractor_args,
-        **_cookie_opt,
-        **_proxy_opt,
+        **_common_opts,
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True) or {}
