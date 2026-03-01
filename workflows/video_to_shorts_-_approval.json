@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-03-01T02:38:10.537Z",
+  "updatedAt": "2026-03-01T18:55:44.117Z",
   "createdAt": "2026-03-01T00:39:48.984Z",
   "id": "approval-workflow-001",
   "name": "Video to Shorts - Approval",
@@ -49,9 +49,10 @@
       "parameters": {
         "conditions": {
           "options": {
-            "caseSensitive": false,
+            "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose"
+            "typeValidation": "strict",
+            "version": 2
           },
           "conditions": [
             {
@@ -512,15 +513,22 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "staticData": null,
+  "staticData": {
+    "node:Google Sheets Trigger": {
+      "documentId": "1DeuormgMeAYmqrx7h1GqByNxJiNXMBhInEfkzCbuJ3I",
+      "sheetId": 0,
+      "lastRevision": 168,
+      "lastRevisionLink": "https://docs.google.com/spreadsheets/export?id=1DeuormgMeAYmqrx7h1GqByNxJiNXMBhInEfkzCbuJ3I&revision=168&exportFormat=xlsx"
+    }
+  },
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "n8n-local-smoke"
   },
   "pinData": {},
-  "versionId": "41ac1fcc-8c9d-4a3e-9f9d-97dfbd561381",
-  "activeVersionId": "4c565633-d198-4981-a1b9-ddedf619dab3",
-  "triggerCount": 0,
+  "versionId": "2ef0eb27-a742-48ae-a0bc-05ce9bea3263",
+  "activeVersionId": "2ef0eb27-a742-48ae-a0bc-05ce9bea3263",
+  "triggerCount": 1,
   "shared": [
     {
       "updatedAt": "2026-03-01T00:39:48.984Z",
@@ -531,13 +539,20 @@
     }
   ],
   "activeVersion": {
-    "updatedAt": "2026-03-01T00:39:48.984Z",
-    "createdAt": "2026-03-01T00:39:48.984Z",
-    "versionId": "4c565633-d198-4981-a1b9-ddedf619dab3",
+    "updatedAt": "2026-03-01T18:56:09.109Z",
+    "createdAt": "2026-03-01T18:55:44.119Z",
+    "versionId": "2ef0eb27-a742-48ae-a0bc-05ce9bea3263",
     "workflowId": "approval-workflow-001",
     "nodes": [
       {
         "parameters": {
+          "pollTimes": {
+            "item": [
+              {
+                "mode": "everyMinute"
+              }
+            ]
+          },
           "documentId": {
             "__rl": true,
             "mode": "url",
@@ -559,11 +574,11 @@
         "typeVersion": 1,
         "position": [
           400,
-          300
+          304
         ],
         "credentials": {
-          "googleSheetsOAuth2Api": {
-            "id": "5BUdyIm6VmWRJYHE",
+          "googleSheetsTriggerOAuth2Api": {
+            "id": "EEKPKQpM13S31UEr",
             "name": "Google Sheets Trigger account"
           }
         }
@@ -572,9 +587,10 @@
         "parameters": {
           "conditions": {
             "options": {
-              "caseSensitive": false,
+              "caseSensitive": true,
               "leftValue": "",
-              "typeValidation": "loose"
+              "typeValidation": "strict",
+              "version": 2
             },
             "conditions": [
               {
@@ -607,8 +623,8 @@
         "type": "n8n-nodes-base.if",
         "typeVersion": 2.2,
         "position": [
-          620,
-          300
+          624,
+          304
         ]
       },
       {
@@ -661,8 +677,8 @@
         "type": "n8n-nodes-base.googleSheets",
         "typeVersion": 4.7,
         "position": [
-          840,
-          300
+          848,
+          304
         ],
         "credentials": {
           "googleSheetsOAuth2Api": {
@@ -732,8 +748,8 @@
         "type": "n8n-nodes-base.set",
         "typeVersion": 3.4,
         "position": [
-          1060,
-          300
+          1072,
+          304
         ]
       },
       {
@@ -747,7 +763,7 @@
         "typeVersion": 4.4,
         "position": [
           1280,
-          300
+          304
         ]
       },
       {
@@ -786,12 +802,12 @@
         "type": "n8n-nodes-base.httpRequest",
         "typeVersion": 4.4,
         "position": [
-          1500,
-          300
+          1504,
+          304
         ],
         "credentials": {
           "youTubeOAuth2Api": {
-            "id": "o5Fu0eG1BgeY6kHG",
+            "id": "hP5FjskJJoEDdwSF",
             "name": "YouTube account"
           }
         }
@@ -821,12 +837,12 @@
         "type": "n8n-nodes-base.httpRequest",
         "typeVersion": 4.4,
         "position": [
-          1940,
-          300
+          1952,
+          304
         ],
         "credentials": {
           "youTubeOAuth2Api": {
-            "id": "o5Fu0eG1BgeY6kHG",
+            "id": "hP5FjskJJoEDdwSF",
             "name": "YouTube account"
           }
         }
@@ -902,7 +918,7 @@
         "typeVersion": 4.7,
         "position": [
           2160,
-          300
+          304
         ],
         "credentials": {
           "googleSheetsOAuth2Api": {
@@ -923,8 +939,8 @@
         "type": "n8n-nodes-base.stickyNote",
         "typeVersion": 1,
         "position": [
-          360,
-          100
+          368,
+          112
         ]
       },
       {
@@ -936,8 +952,8 @@
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
         "position": [
-          1720,
-          300
+          1728,
+          304
         ]
       }
     ],
@@ -1032,10 +1048,10 @@
         ]
       }
     },
-    "authors": "import",
-    "name": null,
-    "description": null,
-    "autosaved": false
+    "authors": "Pedro Gudin",
+    "name": "Version 1.9.1.2",
+    "description": "",
+    "autosaved": true
   },
   "tags": []
 }
