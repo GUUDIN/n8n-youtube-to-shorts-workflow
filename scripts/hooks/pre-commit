@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# .git/hooks/pre-commit  (source: scripts/hooks/pre-commit)
+# Syncs workflows from clipwave.app before every commit.
+# Re-install with: ./scripts/install-hooks.sh
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+ENV_FILE="$REPO_ROOT/.env.sync"
+N8N_BASE_URL="https://clipwave.app"
+WORKFLOWS_DIR="$REPO_ROOT/workflows"
+
+# Load API key
+if [[ -f "$ENV_FILE" ]]; then
+  source "$ENV_FILE"
+fi
+
+if [[ -z "${N8N_API_KEY:-}" ]]; then
+  echo "⚠  sync-workflows: N8N_API_KEY not set in .env.sync — skipping."
+  exit 0
+fi
+
+WORKFLOWS_JSON=$(curl -sf \
+  -H "X-N8N-API-KEY: $N8N_API_KEY" \
+  "$N8N_BASE_URL/api/v1/workflows" || true)
+
+if [[ -z "$WORKFLOWS_JSON" ]]; then
+  echo "⚠  sync-workflows: could not reach $N8N_BASE_URL — skipping."
+  exit 0
+fi
+
+CHANGED=$(export WORKFLOWS_DIR WORKFLOWS_JSON; python3 <<'PYEOF'
+import json, os, re
+
+data = json.loads(os.environ["WORKFLOWS_JSON"])
+workflows_dir = os.environ["WORKFLOWS_DIR"]
+os.makedirs(workflows_dir, exist_ok=True)
+
+changed = []
+for wf in data.get("data", []):
+    name = wf.get("name", f"workflow_{wf['id']}")
+    safe_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", name).strip("_").lower()
+    path = os.path.join(workflows_dir, f"{safe_name}.json")
+    new_content = json.dumps(wf, ensure_ascii=False, indent=2)
+    old_content = open(path).read() if os.path.exists(path) else ""
+    if new_content != old_content:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(new_content)
+        changed.append(path)
+
+print("\n".join(changed))
+PYEOF
+)
+
+if [[ -n "$CHANGED" ]]; then
+  echo "↓  sync-workflows: updated from clipwave.app:"
+  while IFS= read -r f; do
+    git add "$f"
+    echo "   staged: $(basename "$f")"
+  done <<< "$CHANGED"
+else
+  echo "✓  sync-workflows: workflows already up to date."
+fi
+
+exit 0
