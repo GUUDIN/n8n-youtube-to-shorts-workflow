@@ -21,6 +21,8 @@ RUN for i in 1 2 3 4 5; do \
             wget \
             fontconfig \
             nodejs \
+            npm \
+            git \
         && rm -rf /var/lib/apt/lists/* && break \
         || { echo "Attempt $i failed, retrying in 10s..."; sleep 10; }; \
     done
@@ -39,10 +41,21 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# ---------- bgutil PO Token HTTP server (bypasses YouTube bot detection) ----------
+# Clones the provider repo, builds the TypeScript server.
+# At runtime the entrypoint starts the server on 127.0.0.1:4416
+# so yt-dlp (via the bgutil-ytdlp-pot-provider plugin) can fetch PO tokens.
+RUN git clone --depth 1 https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git /opt/bgutil \
+    && cd /opt/bgutil/server \
+    && npm install \
+    && npx tsc
+
 # Pre-download Whisper models so first request is instant
 RUN python -c "from faster_whisper import WhisperModel; WhisperModel('small', device='cpu', compute_type='int8')"
 
 # App code
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
 COPY app.py .
 
 # Persistent storage for downloaded videos & renders
@@ -50,5 +63,5 @@ VOLUME /data
 
 EXPOSE 8000
 
-# Run with uvicorn
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Entrypoint starts bgutil PO Token server, then launches uvicorn
+ENTRYPOINT ["./entrypoint.sh"]

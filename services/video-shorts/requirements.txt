@@ -7,3 +7,5 @@ opencv-python-headless>=4.9
 mediapipe>=0.10.14
 numpy>=1.26
 pydantic>=2.0
+yt-dlp-ejs>=0.5.0
+bgutil-ytdlp-pot-provider
