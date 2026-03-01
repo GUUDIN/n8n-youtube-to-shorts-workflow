@@ -35,6 +35,7 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       WHISPER_MODEL: ${WHISPER_MODEL:-base}
       BASE_URL: http://video-shorts:8000
+      YTDLP_PROXY: ${YTDLP_PROXY:-}
     volumes:
       - ./vol/video-shorts:/data
       - ./yt-cookies.txt:/app/yt-cookies.txt
