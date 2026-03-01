@@ -1,0 +1,205 @@
+{
+  "updatedAt": "2026-03-01T20:27:02.573Z",
+  "createdAt": "2026-03-01T20:26:24.385Z",
+  "id": "2AE5z0qmKMVNYKC3",
+  "name": "ClipWave - Pipeline Status",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "pipeline-status",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        260,
+        340
+      ],
+      "webhookId": "pipeline-status",
+      "id": "6478f2a4-336b-4321-a973-a3a2399a9287"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://video-shorts:8000/api/pipeline/latest",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "name": "Get Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        340
+      ],
+      "id": "208c64a7-f69d-480b-b0ef-1ae61de2e52d"
+    },
+    {
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Cache-Control",
+                "value": "no-cache, no-store"
+              }
+            ]
+          }
+        }
+      },
+      "name": "Send Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        700,
+        340
+      ],
+      "id": "6ab6654c-e7b3-441d-8f21-71a9bba44ff2"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Status": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": null,
+  "versionId": "514b7038-517a-4f22-9e93-b72db79545ea",
+  "activeVersionId": "514b7038-517a-4f22-9e93-b72db79545ea",
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-03-01T20:26:24.385Z",
+      "createdAt": "2026-03-01T20:26:24.385Z",
+      "role": "workflow:owner",
+      "workflowId": "2AE5z0qmKMVNYKC3",
+      "projectId": "dXzfnJR19RNOtl7T"
+    }
+  ],
+  "activeVersion": {
+    "updatedAt": "2026-03-01T20:27:02.575Z",
+    "createdAt": "2026-03-01T20:27:02.575Z",
+    "versionId": "514b7038-517a-4f22-9e93-b72db79545ea",
+    "workflowId": "2AE5z0qmKMVNYKC3",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "GET",
+          "path": "pipeline-status",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "name": "Webhook",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          260,
+          340
+        ],
+        "webhookId": "pipeline-status",
+        "id": "6478f2a4-336b-4321-a973-a3a2399a9287"
+      },
+      {
+        "parameters": {
+          "method": "GET",
+          "url": "http://video-shorts:8000/api/pipeline/latest",
+          "options": {
+            "timeout": 5000
+          }
+        },
+        "name": "Get Status",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          480,
+          340
+        ],
+        "id": "208c64a7-f69d-480b-b0ef-1ae61de2e52d"
+      },
+      {
+        "parameters": {
+          "respondWith": "firstIncomingItem",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Cache-Control",
+                  "value": "no-cache, no-store"
+                }
+              ]
+            }
+          }
+        },
+        "name": "Send Response",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          700,
+          340
+        ],
+        "id": "6ab6654c-e7b3-441d-8f21-71a9bba44ff2"
+      }
+    ],
+    "connections": {
+      "Webhook": {
+        "main": [
+          [
+            {
+              "node": "Get Status",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Status": {
+        "main": [
+          [
+            {
+              "node": "Send Response",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Pedro Gudin",
+    "name": null,
+    "description": null,
+    "autosaved": false
+  },
+  "tags": []
+}

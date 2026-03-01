@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-03-01T19:57:31.473Z",
+  "updatedAt": "2026-03-01T20:04:40.875Z",
   "createdAt": "2026-03-01T00:39:33.637Z",
   "id": "hGpeZnulV01ifHHy",
   "name": "Video to Shorts - Generation",
@@ -304,14 +304,10 @@
         "options": {
           "respondWithOptions": {
             "values": {
-              "respondWith": "text",
-              "responseText": "Seu video esta sendo processado!\n\nIsso pode levar alguns minutos dependendo da duracao do video. Em breve voce recebera os Shorts no painel de aprovacao.\n\nPode fechar esta aba."
+              "respondWith": "redirect",
+              "redirectUrl": "https://clipwave.app/webhook/70a937d7-77b6-42a4-89d6-92af2729ffe7"
             }
           }
-        },
-        "respondWithOptions": {
-          "respondWith": "redirect",
-          "redirectUrl": "https://clipwave.app/webhook/70a937d7-77b6-42a4-89d6-92af2729ffe7"
         }
       },
       "id": "b98aebd1-4a2e-42f6-b327-a2ee5262b407",
@@ -1155,8 +1151,8 @@
     "instanceId": "n8n-local-smoke"
   },
   "pinData": {},
-  "versionId": "17aaa211-5587-4eac-b016-803aed0eba11",
-  "activeVersionId": "17aaa211-5587-4eac-b016-803aed0eba11",
+  "versionId": "8e22b3d8-6b8a-4d9a-98e0-1a3e6be5fc4b",
+  "activeVersionId": "8e22b3d8-6b8a-4d9a-98e0-1a3e6be5fc4b",
   "triggerCount": 1,
   "shared": [
     {
@@ -1168,9 +1164,9 @@
     }
   ],
   "activeVersion": {
-    "updatedAt": "2026-03-01T19:57:31.477Z",
-    "createdAt": "2026-03-01T19:57:31.477Z",
-    "versionId": "17aaa211-5587-4eac-b016-803aed0eba11",
+    "updatedAt": "2026-03-01T20:04:40.878Z",
+    "createdAt": "2026-03-01T20:04:40.878Z",
+    "versionId": "8e22b3d8-6b8a-4d9a-98e0-1a3e6be5fc4b",
     "workflowId": "hGpeZnulV01ifHHy",
     "nodes": [
       {
@@ -1471,14 +1467,10 @@
           "options": {
             "respondWithOptions": {
               "values": {
-                "respondWith": "text",
-                "responseText": "Seu video esta sendo processado!\n\nIsso pode levar alguns minutos dependendo da duracao do video. Em breve voce recebera os Shorts no painel de aprovacao.\n\nPode fechar esta aba."
+                "respondWith": "redirect",
+                "redirectUrl": "https://clipwave.app/webhook/70a937d7-77b6-42a4-89d6-92af2729ffe7"
               }
             }
-          },
-          "respondWithOptions": {
-            "respondWith": "redirect",
-            "redirectUrl": "https://clipwave.app/webhook/70a937d7-77b6-42a4-89d6-92af2729ffe7"
           }
         },
         "id": "b98aebd1-4a2e-42f6-b327-a2ee5262b407",

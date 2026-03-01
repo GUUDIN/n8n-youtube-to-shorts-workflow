@@ -24,6 +24,7 @@ from typing import Optional
 import cv2
 import numpy as np
 from fastapi import FastAPI, BackgroundTasks, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -43,6 +44,7 @@ RENDERS.mkdir(parents=True, exist_ok=True)
 WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL", "small")
 GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 BASE_URL = os.getenv("BASE_URL", "http://video-shorts:8000")
+YTDLP_PROXY = os.getenv("YTDLP_PROXY", "")  # e.g. socks5://user:pass@host:port
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("video-shorts")
@@ -51,6 +53,12 @@ log = logging.getLogger("video-shorts")
 # FastAPI app
 # ---------------------------------------------------------------------------
 app = FastAPI(title="Video Shorts Service")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://clipwave.app", "http://localhost:5678"],
+    allow_methods=["GET", "POST", "PATCH"],
+    allow_headers=["*"],
+)
 app.mount("/videos", StaticFiles(directory=str(RENDERS)), name="videos")
 
 # ---------------------------------------------------------------------------
@@ -58,6 +66,7 @@ app.mount("/videos", StaticFiles(directory=str(RENDERS)), name="videos")
 # ---------------------------------------------------------------------------
 jobs: dict = {}
 renders: dict = {}
+pipeline_status: dict = {}  # {pipeline_id: {step, detail, error, ...}}
 
 # ---------------------------------------------------------------------------
 # Lazy-loaded singletons
@@ -95,11 +104,12 @@ def download_youtube(video_id: str, output_dir: Path) -> tuple[str, dict]:
     expected = output_dir / f"{video_id}.mp4"
     _cookies_file = "/app/yt-cookies.txt"
     _cookie_opt = {"cookiefile": _cookies_file} if os.path.exists(_cookies_file) else {}
+    _proxy_opt = {"proxy": YTDLP_PROXY} if YTDLP_PROXY else {}
     # Use ios+web player clients to bypass sig/n challenge restrictions on cloud IPs.
     # ios client returns HLS streams (no sig/n challenge needed).
     # web client is kept as fallback and supports cookies for private/age-restricted videos.
     _extractor_args = {"youtube": {"player_client": ["ios", "web"]}}
-    _meta_only_opts = {"quiet": True, "no_warnings": True, "extractor_args": _extractor_args, **_cookie_opt}
+    _meta_only_opts = {"quiet": True, "no_warnings": True, "extractor_args": _extractor_args, **_cookie_opt, **_proxy_opt}
 
     if expected.exists() and expected.stat().st_size > 1_000_000:
         log.info("Using cached video: %s", expected)
@@ -120,6 +130,7 @@ def download_youtube(video_id: str, output_dir: Path) -> tuple[str, dict]:
         "postprocessors": [{"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}],
         "extractor_args": _extractor_args,
         **_cookie_opt,
+        **_proxy_opt,
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True) or {}
@@ -1232,6 +1243,8 @@ def process_job(job_id: str, video_id: str, target_dur_min: int = 45, target_dur
             if not link.exists():
                 link.symlink_to(cached)
 
+        jobs[job_id]["step"] = "downloading"
+        jobs[job_id]["step_detail"] = "Baixando vídeo do YouTube..."
         log.info("[%s] Downloading YouTube video %s …", job_id, video_id)
         video_path, video_info = download_youtube(video_id, job_dir)
         video_title = video_info.get("title", "")
@@ -1247,6 +1260,8 @@ def process_job(job_id: str, video_id: str, target_dur_min: int = 45, target_dur
         orig_h = int(_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         _cap.release()
 
+        jobs[job_id]["step"] = "transcribing"
+        jobs[job_id]["step_detail"] = "Transcrevendo áudio com IA..."
         log.info("[%s] Transcribing (language=%s) …", job_id, language or "auto")
         transcript = transcribe_video(video_path, language=language)
         duration = transcript[-1]["end"] if transcript else 0
@@ -1257,6 +1272,8 @@ def process_job(job_id: str, video_id: str, target_dur_min: int = 45, target_dur
             duration,
         )
 
+        jobs[job_id]["step"] = "analyzing"
+        jobs[job_id]["step_detail"] = "IA analisando e selecionando trechos..."
         log.info("[%s] Analyzing transcript with Gemini (target %d-%ds) …", job_id, target_dur_min, target_dur_max)
         segments = analyze_transcript(transcript, duration, target_dur_min, target_dur_max)
         log.info("[%s] Found %d short candidates", job_id, len(segments))
@@ -1366,7 +1383,7 @@ class JobRequest(BaseModel):
 @app.post("/api/jobs")
 async def create_job(request: JobRequest, background_tasks: BackgroundTasks):
     job_id = uuid.uuid4().hex[:8]
-    jobs[job_id] = {"id": job_id, "status": "PROCESSING"}
+    jobs[job_id] = {"id": job_id, "status": "PROCESSING", "step": "queued", "step_detail": "Job na fila...", "_created": datetime.now(timezone.utc).timestamp()}
     background_tasks.add_task(
         process_job, job_id, request.youtubeVideoId,
         request.targetDurationMin, request.targetDurationMax,
@@ -1405,6 +1422,51 @@ async def get_render(render_id: str):
     if render_id not in renders:
         return JSONResponse({"error": "Render not found"}, status_code=404)
     return renders[render_id]
+
+
+@app.get("/api/pipeline/latest")
+async def get_latest_pipeline():
+    """Return combined status of the latest job + renders for loading page polling."""
+    if not jobs:
+        return {"step": "waiting", "detail": "Nenhum job encontrado", "error": None}
+
+    # Find the most recent job
+    latest_id = max(jobs.keys(), key=lambda k: jobs[k].get("_created", 0))
+    job = jobs[latest_id]
+    status = job.get("status", "PROCESSING")
+    step = job.get("step", "unknown")
+    error = job.get("error") if status == "ERROR" else None
+
+    # Map internal step to loading page step index
+    step_map = {
+        "downloading": 3,      # Baixando e transcrevendo
+        "transcribing": 3,     # Baixando e transcrevendo
+        "analyzing": 2,        # IA selecionando momentos
+    }
+    step_index = step_map.get(step, 0)
+
+    if status == "COMPLETED":
+        # Check if any renders are in progress
+        active_renders = [r for r in renders.values() if r.get("type") == "processing"]
+        done_renders = [r for r in renders.values() if r.get("type") == "done"]
+        error_renders = [r for r in renders.values() if r.get("type") == "error"]
+
+        if error_renders:
+            return {"step": "error", "stepIndex": 5, "detail": error_renders[0].get("error", "Render failed"), "error": True, "jobId": latest_id}
+        elif active_renders:
+            return {"step": "rendering", "stepIndex": 5, "detail": f"Renderizando shorts ({len(done_renders)} prontos)...", "error": None, "jobId": latest_id}
+        elif done_renders:
+            return {"step": "done", "stepIndex": 6, "detail": "Todos os shorts foram processados!", "error": None, "jobId": latest_id, "renderCount": len(done_renders)}
+        else:
+            return {"step": "cutting", "stepIndex": 4, "detail": "Análise completa, aguardando renderização...", "error": None, "jobId": latest_id}
+
+    return {
+        "step": step,
+        "stepIndex": step_index,
+        "detail": job.get("step_detail", "Processando..."),
+        "error": error,
+        "jobId": latest_id,
+    }
 
 
 @app.get("/api/caption-presets")
