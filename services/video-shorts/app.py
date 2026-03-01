@@ -95,7 +95,11 @@ def download_youtube(video_id: str, output_dir: Path) -> tuple[str, dict]:
     expected = output_dir / f"{video_id}.mp4"
     _cookies_file = "/app/yt-cookies.txt"
     _cookie_opt = {"cookiefile": _cookies_file} if os.path.exists(_cookies_file) else {}
-    _meta_only_opts = {"quiet": True, "no_warnings": True, **_cookie_opt}
+    # Use ios+web player clients to bypass sig/n challenge restrictions on cloud IPs.
+    # ios client returns HLS streams (no sig/n challenge needed).
+    # web client is kept as fallback and supports cookies for private/age-restricted videos.
+    _extractor_args = {"youtube": {"player_client": ["ios", "web"]}}
+    _meta_only_opts = {"quiet": True, "no_warnings": True, "extractor_args": _extractor_args, **_cookie_opt}
 
     if expected.exists() and expected.stat().st_size > 1_000_000:
         log.info("Using cached video: %s", expected)
@@ -114,6 +118,7 @@ def download_youtube(video_id: str, output_dir: Path) -> tuple[str, dict]:
         "quiet": True,
         "no_warnings": True,
         "postprocessors": [{"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}],
+        "extractor_args": _extractor_args,
         **_cookie_opt,
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
