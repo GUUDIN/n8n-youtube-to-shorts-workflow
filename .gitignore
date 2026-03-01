@@ -6,6 +6,7 @@
 # Environment / Secrets
 # ----------------------------------------------------------------------
 .env
+.env.sync
 .env.smoke
 .env.prod
 .vol/
